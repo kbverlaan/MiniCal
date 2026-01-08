@@ -22,15 +22,22 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if user:
         welcome_msg = f"""👋 Welkom bij MiniCal!
 
-Ik help je om je calorieën te tracken. Super simpel:
+Ik help je om je calorieën, supplementen en workouts te tracken. Super simpel:
 
 📝 **Hoe werkt het?**
-Stuur gewoon een bericht met wat je hebt gegeten en/of welke workout je hebt gedaan.
+Stuur gewoon een bericht met wat je hebt gegeten, gedronken, of welke supplementen/workout je hebt gedaan.
 
 Bijvoorbeeld:
 "2 eieren met toast en een banaan"
 "uurtje hardlopen gedaan"
 "bulgogi rijst met sla, daarna 45 min krachttraining"
+"vitamine D3 1000mcg genomen"
+
+❓ **Vragen stellen:**
+Stel gewoon je vraag en ik geef antwoord met je statistieken!
+"Hoe gaat het deze week?"
+"Haal ik genoeg protein?"
+"Hoeveel heb ik gesport?"
 
 ⏰ **Dagelijkse checks:**
 • 22:00 - Ik vraag of alles erin staat
@@ -89,6 +96,31 @@ Verschil: {totals['net_calories'] - user['daily_calories']:+d} kcal
 {'✅ Onder doel!' if totals['net_calories'] < user['daily_calories'] else '⚠️ Boven doel'}
 
 📝 {totals['meal_count']} maaltijd(en) • 💪 {totals['workout_count']} workout(s)"""
+    
+    # Add vitamins/minerals if significant amounts
+    vitamins = []
+    if totals.get('vitamin_d', 0) > 0:
+        vitamins.append(f"Vit D: {totals['vitamin_d']:.1f}mcg")
+    if totals.get('vitamin_c', 0) > 0:
+        vitamins.append(f"Vit C: {totals['vitamin_c']:.0f}mg")
+    if totals.get('vitamin_b12', 0) > 0:
+        vitamins.append(f"B12: {totals['vitamin_b12']:.1f}mcg")
+    if totals.get('omega3', 0) > 0:
+        vitamins.append(f"Omega-3: {totals['omega3']:.0f}mg")
+    if totals.get('magnesium', 0) > 0:
+        vitamins.append(f"Mg: {totals['magnesium']:.0f}mg")
+    if totals.get('calcium', 0) > 0:
+        vitamins.append(f"Ca: {totals['calcium']:.0f}mg")
+    if totals.get('iron', 0) > 0:
+        vitamins.append(f"IJzer: {totals['iron']:.1f}mg")
+    if totals.get('zinc', 0) > 0:
+        vitamins.append(f"Zink: {totals['zinc']:.1f}mg")
+    if totals.get('creatine', 0) > 0:
+        vitamins.append(f"Creatine: {totals['creatine']:.1f}g")
+    
+    if vitamins:
+        msg += "\n\n💊 **VITAMINES/MINERALEN**\n"
+        msg += " • ".join(vitamins)
     
     await update.message.reply_text(msg, parse_mode='Markdown')
 
@@ -168,8 +200,38 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if len(conversation_context[telegram_id]) > 10:
         conversation_context[telegram_id] = conversation_context[telegram_id][-10:]
     
-    # Parse with LLM including conversation history
-    parsed = llm_service.parse_food_and_workouts(text, conversation_context[telegram_id][:-1])  # Exclude current message as it's added in the function
+    # First: classify the intent
+    intent_result = llm_service.classify_intent(text, conversation_context[telegram_id][:-1])
+    intent = intent_result.get('intent', 'log_data')
+    
+    print(f"Intent classified as: {intent} (confidence: {intent_result.get('confidence', 0)})")
+    
+    # If it's a question, use the Q&A flow
+    if intent == 'question':
+        # Get today's date
+        tz = pytz.timezone(BotConfig.TIMEZONE)
+        today = datetime.now(tz).date().isoformat()
+        
+        # Calculate week range (last 7 days including today)
+        from datetime import timedelta
+        week_start = (datetime.now(tz).date() - timedelta(days=6)).isoformat()
+        
+        # Get daily and weekly stats
+        daily_stats = supabase_client.get_daily_totals(user['id'], today)
+        weekly_stats = supabase_client.get_weekly_averages(user['id'], week_start, today)
+        
+        # Get recent workouts for detailed planning advice
+        recent_workouts = supabase_client.get_workouts_for_range(user['id'], week_start, today)
+        
+        # Get answer from LLM
+        answer = llm_service.answer_question_with_stats(text, daily_stats, weekly_stats, recent_workouts)
+        
+        conversation_context[telegram_id].append({"role": "assistant", "content": answer})
+        await update.message.reply_text(answer)
+        return
+    
+    # Otherwise (log_data or clarification_response): parse for food/workouts
+    parsed = llm_service.parse_food_and_workouts(text, conversation_context[telegram_id][:-1])
     
     # Get today's date
     tz = pytz.timezone(BotConfig.TIMEZONE)
@@ -212,7 +274,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 protein=meal['protein'],
                 carbs=meal['carbs'],
                 fat=meal['fat'],
-                date=today
+                date=today,
+                vitamin_d=meal.get('vitamin_d', 0),
+                vitamin_c=meal.get('vitamin_c', 0),
+                vitamin_b12=meal.get('vitamin_b12', 0),
+                omega3=meal.get('omega3', 0),
+                magnesium=meal.get('magnesium', 0),
+                calcium=meal.get('calcium', 0),
+                iron=meal.get('iron', 0),
+                zinc=meal.get('zinc', 0),
+                creatine=meal.get('creatine', 0)
             )
             if result:
                 meal_count += 1

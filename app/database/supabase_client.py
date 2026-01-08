@@ -79,8 +79,11 @@ class SupabaseClient:
     # === MEALS ===
     
     def add_meal(self, user_id: int, description: str, calories: int, 
-                protein: float, carbs: float, fat: float, date: str = None) -> dict | None:
-        """Add a meal entry."""
+                protein: float, carbs: float, fat: float, date: str = None,
+                vitamin_d: float = 0, vitamin_c: float = 0, vitamin_b12: float = 0,
+                omega3: float = 0, magnesium: float = 0, calcium: float = 0,
+                iron: float = 0, zinc: float = 0, creatine: float = 0) -> dict | None:
+        """Add a meal entry with macros and micronutrients."""
         try:
             meal_data = {
                 'user_id': user_id,
@@ -88,7 +91,16 @@ class SupabaseClient:
                 'calories': calories,
                 'protein': protein,
                 'carbs': carbs,
-                'fat': fat
+                'fat': fat,
+                'vitamin_d': vitamin_d,
+                'vitamin_c': vitamin_c,
+                'vitamin_b12': vitamin_b12,
+                'omega3': omega3,
+                'magnesium': magnesium,
+                'calcium': calcium,
+                'iron': iron,
+                'zinc': zinc,
+                'creatine': creatine
             }
             if date:
                 meal_data['date'] = date
@@ -155,6 +167,22 @@ class SupabaseClient:
             print(f"Error fetching workouts: {e}")
             return []
 
+    def get_workouts_for_range(self, user_id: int, start_date: str, end_date: str) -> list[dict]:
+        """Get all workouts for a specific date range."""
+        try:
+            response = self.client.table('workouts') \
+                .select('*') \
+                .eq('user_id', user_id) \
+                .gte('date', start_date) \
+                .lte('date', end_date) \
+                .order('date', desc=True) \
+                .execute()
+            
+            return response.data if response.data else []
+        except Exception as e:
+            print(f"Error fetching workouts for range: {e}")
+            return []
+
     # === SUMMARY CALCULATIONS ===
     
     def get_daily_totals(self, user_id: int, date: str) -> dict:
@@ -168,6 +196,17 @@ class SupabaseClient:
         total_fat = sum(m['fat'] for m in meals)
         total_burned = sum(w['calories_burned'] for w in workouts)
         
+        # Sum vitamins/minerals
+        total_vitamin_d = sum(m.get('vitamin_d', 0) or 0 for m in meals)
+        total_vitamin_c = sum(m.get('vitamin_c', 0) or 0 for m in meals)
+        total_vitamin_b12 = sum(m.get('vitamin_b12', 0) or 0 for m in meals)
+        total_omega3 = sum(m.get('omega3', 0) or 0 for m in meals)
+        total_magnesium = sum(m.get('magnesium', 0) or 0 for m in meals)
+        total_calcium = sum(m.get('calcium', 0) or 0 for m in meals)
+        total_iron = sum(m.get('iron', 0) or 0 for m in meals)
+        total_zinc = sum(m.get('zinc', 0) or 0 for m in meals)
+        total_creatine = sum(m.get('creatine', 0) or 0 for m in meals)
+        
         return {
             'total_calories': total_calories,
             'total_protein': total_protein,
@@ -176,7 +215,16 @@ class SupabaseClient:
             'total_burned': total_burned,
             'net_calories': total_calories - total_burned,
             'meal_count': len(meals),
-            'workout_count': len(workouts)
+            'workout_count': len(workouts),
+            'vitamin_d': total_vitamin_d,
+            'vitamin_c': total_vitamin_c,
+            'vitamin_b12': total_vitamin_b12,
+            'omega3': total_omega3,
+            'magnesium': total_magnesium,
+            'calcium': total_calcium,
+            'iron': total_iron,
+            'zinc': total_zinc,
+            'creatine': total_creatine
         }
 
     def get_all_users(self) -> list[dict]:
@@ -187,6 +235,96 @@ class SupabaseClient:
         except Exception as e:
             print(f"Error fetching users: {e}")
             return []
+
+    # === STATS & ANALYTICS ===
+    
+    def get_weekly_averages(self, user_id: int, start_date: str, end_date: str) -> dict:
+        """Calculate weekly averages for all trackables."""
+        try:
+            # Get all meals for the week
+            meals_response = self.client.table('meals') \
+                .select('*') \
+                .eq('user_id', user_id) \
+                .gte('date', start_date) \
+                .lte('date', end_date) \
+                .execute()
+            
+            meals = meals_response.data if meals_response.data else []
+            
+            # Get all workouts for the week
+            workouts_response = self.client.table('workouts') \
+                .select('*') \
+                .eq('user_id', user_id) \
+                .gte('date', start_date) \
+                .lte('date', end_date) \
+                .execute()
+            
+            workouts = workouts_response.data if workouts_response.data else []
+            
+            # Calculate days with data
+            from datetime import datetime, timedelta
+            start = datetime.fromisoformat(start_date)
+            end = datetime.fromisoformat(end_date)
+            days_in_range = (end - start).days + 1
+            
+            # Calculate totals - macros
+            total_calories = sum(m['calories'] for m in meals)
+            total_protein = sum(m['protein'] for m in meals)
+            total_carbs = sum(m['carbs'] for m in meals)
+            total_fat = sum(m['fat'] for m in meals)
+            total_burned = sum(w['calories_burned'] for w in workouts)
+            
+            # Calculate totals - vitamins/minerals
+            total_vitamin_d = sum(m.get('vitamin_d', 0) or 0 for m in meals)
+            total_vitamin_c = sum(m.get('vitamin_c', 0) or 0 for m in meals)
+            total_vitamin_b12 = sum(m.get('vitamin_b12', 0) or 0 for m in meals)
+            total_omega3 = sum(m.get('omega3', 0) or 0 for m in meals)
+            total_magnesium = sum(m.get('magnesium', 0) or 0 for m in meals)
+            total_calcium = sum(m.get('calcium', 0) or 0 for m in meals)
+            total_iron = sum(m.get('iron', 0) or 0 for m in meals)
+            total_zinc = sum(m.get('zinc', 0) or 0 for m in meals)
+            total_creatine = sum(m.get('creatine', 0) or 0 for m in meals)
+            
+            # Calculate averages
+            avg_calories = total_calories / days_in_range if days_in_range > 0 else 0
+            avg_protein = total_protein / days_in_range if days_in_range > 0 else 0
+            avg_carbs = total_carbs / days_in_range if days_in_range > 0 else 0
+            avg_fat = total_fat / days_in_range if days_in_range > 0 else 0
+            avg_burned = total_burned / days_in_range if days_in_range > 0 else 0
+            
+            avg_vitamin_d = total_vitamin_d / days_in_range if days_in_range > 0 else 0
+            avg_vitamin_c = total_vitamin_c / days_in_range if days_in_range > 0 else 0
+            avg_vitamin_b12 = total_vitamin_b12 / days_in_range if days_in_range > 0 else 0
+            avg_omega3 = total_omega3 / days_in_range if days_in_range > 0 else 0
+            avg_magnesium = total_magnesium / days_in_range if days_in_range > 0 else 0
+            avg_calcium = total_calcium / days_in_range if days_in_range > 0 else 0
+            avg_iron = total_iron / days_in_range if days_in_range > 0 else 0
+            avg_zinc = total_zinc / days_in_range if days_in_range > 0 else 0
+            avg_creatine = total_creatine / days_in_range if days_in_range > 0 else 0
+            
+            return {
+                'days_in_range': days_in_range,
+                'avg_calories': round(avg_calories, 1),
+                'avg_protein': round(avg_protein, 1),
+                'avg_carbs': round(avg_carbs, 1),
+                'avg_fat': round(avg_fat, 1),
+                'avg_burned': round(avg_burned, 1),
+                'avg_net_calories': round(avg_calories - avg_burned, 1),
+                'total_meals': len(meals),
+                'total_workouts': len(workouts),
+                'avg_vitamin_d': round(avg_vitamin_d, 1),
+                'avg_vitamin_c': round(avg_vitamin_c, 1),
+                'avg_vitamin_b12': round(avg_vitamin_b12, 2),
+                'avg_omega3': round(avg_omega3, 1),
+                'avg_magnesium': round(avg_magnesium, 1),
+                'avg_calcium': round(avg_calcium, 1),
+                'avg_iron': round(avg_iron, 1),
+                'avg_zinc': round(avg_zinc, 1),
+                'avg_creatine': round(avg_creatine, 1)
+            }
+        except Exception as e:
+            print(f"Error calculating weekly averages: {e}")
+            return {}
 
 # Maak een globale instance aan die in de rest van de app kan worden geïmporteerd
 supabase_client = SupabaseClient()
