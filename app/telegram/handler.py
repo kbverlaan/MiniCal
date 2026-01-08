@@ -8,8 +8,18 @@ from app.services.llm_service import llm_service
 from app.config import BotConfig
 
 # Store conversation context per user
-# Format: {user_id: [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
+# Format: {user_id: {"messages": [...], "waiting_for_clarification": bool}}
 conversation_context = {}
+
+async def _keep_typing(bot, chat_id: int) -> None:
+    """Keep sending typing indicator every 4 seconds until cancelled."""
+    import asyncio
+    try:
+        while True:
+            await bot.send_chat_action(chat_id=chat_id, action='typing')
+            await asyncio.sleep(4)
+    except asyncio.CancelledError:
+        pass  # Task was cancelled, stop gracefully
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start command."""
@@ -169,7 +179,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await update.message.reply_text(f"✅ Doel ingesteld: {numbers[0]} kcal/dag")
             # Clear conversation context after goal setting
             if telegram_id in conversation_context:
-                del conversation_context[telegram_id]
+                conversation_context[telegram_id] = {
+                    "messages": [],
+                    "waiting_for_clarification": False
+                }
             return
         elif len(numbers) == 4:
             # All macros
@@ -183,7 +196,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             )
             # Clear conversation context after goal setting
             if telegram_id in conversation_context:
-                del conversation_context[telegram_id]
+                conversation_context[telegram_id] = {
+                    "messages": [],
+                    "waiting_for_clarification": False
+                }
             return
     
     # Show typing indicator
@@ -191,66 +207,107 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     # Get conversation history for this user
     if telegram_id not in conversation_context:
-        conversation_context[telegram_id] = []
+        conversation_context[telegram_id] = {
+            "messages": [],
+            "waiting_for_clarification": False
+        }
     
     # Add current user message to context
-    conversation_context[telegram_id].append({"role": "user", "content": text})
+    conversation_context[telegram_id]["messages"].append({"role": "user", "content": text})
     
     # Keep history within limits (max of configured Q/A history or 10 for intent context)
     max_history = max(BotConfig.MAX_HISTORY_MESSAGES, 10)
-    if len(conversation_context[telegram_id]) > max_history:
-        conversation_context[telegram_id] = conversation_context[telegram_id][-max_history:]
+    if len(conversation_context[telegram_id]["messages"]) > max_history:
+        conversation_context[telegram_id]["messages"] = conversation_context[telegram_id]["messages"][-max_history:]
     
-    # First: classify the intent
-    intent_result = llm_service.classify_intent(text, conversation_context[telegram_id][:-1])
-    intent = intent_result.get('intent', 'log_data')
-    
-    print(f"Intent classified as: {intent} (confidence: {intent_result.get('confidence', 0)})")
-    
-    # If it's a question, use the Q&A flow
-    if intent == 'question':
+    # Check if we're waiting for a clarification response
+    if conversation_context[telegram_id]["waiting_for_clarification"]:
+        # Skip intent classification - this is definitely a clarification response
+        print(f"Treating as clarification response (skipping intent check)")
+        conversation_context[telegram_id]["waiting_for_clarification"] = False
+        
+        # Show typing indicator while waiting for LLM
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action='typing')
+        
+        # Continue to parse_food_and_workouts with the clarification
+        parsed = llm_service.parse_food_and_workouts(text, conversation_context[telegram_id]["messages"][:-1])
+        
         # Get today's date
         tz = pytz.timezone(BotConfig.TIMEZONE)
         today = datetime.now(tz).date().isoformat()
         
-        # Calculate week range (last 7 days including today)
-        from datetime import timedelta
-        week_start = (datetime.now(tz).date() - timedelta(days=6)).isoformat()
+        # Handle the response (will be complete or needs_clarification again)
+        status = parsed.get('status', 'complete')
+        # Jump directly to status handling (skip intent classification)
+    else:
+        # Normal flow: classify intent first
+        intent_result = llm_service.classify_intent(text, conversation_context[telegram_id]["messages"][:-1])
+        intent = intent_result.get('intent', 'log_data').lower()  # Normalize to lowercase
         
-        # Get daily and weekly stats
-        daily_stats = supabase_client.get_daily_totals(user['id'], today)
-        weekly_stats = supabase_client.get_weekly_averages(user['id'], week_start, today)
+        print(f"Intent classified as: {intent.upper()} (confidence: {intent_result.get('confidence', 0)})")
         
-        # Get recent workouts for detailed planning advice
-        recent_workouts = supabase_client.get_workouts_for_range(user['id'], week_start, today)
+        # If it's a question, use the Q&A flow
+        if intent == 'question':
+            # Get today's date
+            tz = pytz.timezone(BotConfig.TIMEZONE)
+            today = datetime.now(tz).date().isoformat()
+            
+            # Calculate week range (last 7 days including today)
+            from datetime import timedelta
+            week_start = (datetime.now(tz).date() - timedelta(days=6)).isoformat()
+            
+            # Get daily and weekly stats
+            daily_stats = supabase_client.get_daily_totals(user['id'], today)
+            weekly_stats = supabase_client.get_weekly_averages(user['id'], week_start, today)
+            
+            # Get recent workouts for detailed planning advice
+            recent_workouts = supabase_client.get_workouts_for_range(user['id'], week_start, today)
+            
+            # Start persistent typing indicator (repeats every 4 seconds)
+            import asyncio
+            typing_task = asyncio.create_task(_keep_typing(context.bot, update.effective_chat.id))
+            
+            try:
+                # Get answer from LLM
+                answer = llm_service.answer_question_with_stats(
+                    text, 
+                    daily_stats, 
+                    weekly_stats,
+                    user_goals=user,
+                    recent_workouts=recent_workouts,
+                    conversation_history=conversation_context[telegram_id]["messages"][:-1]
+                )
+            finally:
+                # Stop typing indicator
+                typing_task.cancel()
+            
+            conversation_context[telegram_id]["messages"].append({"role": "assistant", "content": answer})
+            
+            # Try markdown first, fallback to plain text if parsing fails
+            try:
+                await update.message.reply_text(answer, parse_mode='Markdown')
+            except Exception as e:
+                print(f"⚠️ Markdown parsing failed, sending plain text: {e}")
+                await update.message.reply_text(answer)
+            return
         
-        # Get answer from LLM
-        answer = llm_service.answer_question_with_stats(
-            text, 
-            daily_stats, 
-            weekly_stats, 
-            recent_workouts,
-            conversation_history=conversation_context[telegram_id][:-1]
-        )
+        # Otherwise (log_data): parse for food/workouts
+        # Show typing indicator while waiting for LLM
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action='typing')
+        parsed = llm_service.parse_food_and_workouts(text, conversation_context[telegram_id]["messages"][:-1])
         
-        conversation_context[telegram_id].append({"role": "assistant", "content": answer})
-        await update.message.reply_text(answer)
-        return
-    
-    # Otherwise (log_data or clarification_response): parse for food/workouts
-    parsed = llm_service.parse_food_and_workouts(text, conversation_context[telegram_id][:-1])
-    
-    # Get today's date
-    tz = pytz.timezone(BotConfig.TIMEZONE)
-    today = datetime.now(tz).date().isoformat()
-    
-    # Handle different statuses
-    status = parsed.get('status', 'complete')
+        # Get today's date
+        tz = pytz.timezone(BotConfig.TIMEZONE)
+        today = datetime.now(tz).date().isoformat()
+        
+        # Handle different statuses
+        status = parsed.get('status', 'complete')
     
     if status == 'needs_clarification':
         # Need more info for accurate estimation
         clarification = parsed.get('clarification_question', 'Kun je wat meer details geven?')
-        conversation_context[telegram_id].append({"role": "assistant", "content": clarification})
+        conversation_context[telegram_id]["messages"].append({"role": "assistant", "content": clarification})
+        conversation_context[telegram_id]["waiting_for_clarification"] = True
         await update.message.reply_text(f"❓ {clarification}")
         return
     
@@ -316,11 +373,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             if 'summary' in parsed and parsed['summary']:
                 msg += f"📝 {parsed['summary']}"
             
-            conversation_context[telegram_id].append({"role": "assistant", "content": msg})
+            conversation_context[telegram_id]["messages"].append({"role": "assistant", "content": msg})
             await update.message.reply_text(msg, parse_mode='Markdown')
             
             # Clear conversation context after successful save
-            conversation_context[telegram_id] = []
+            conversation_context[telegram_id] = {
+                "messages": [],
+                "waiting_for_clarification": False
+            }
         else:
             # No data to save - likely unclear input
             response_text = (
@@ -330,7 +390,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 "• \"30 minuten hardlopen\"\n"
                 "• \"pasta carbonara\""
             )
-            conversation_context[telegram_id].append({"role": "assistant", "content": response_text})
+            conversation_context[telegram_id]["messages"].append({"role": "assistant", "content": response_text})
             await update.message.reply_text(response_text)
 
 def setup_telegram_bot(bot_token: str) -> Application:

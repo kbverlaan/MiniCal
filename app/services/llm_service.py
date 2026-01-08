@@ -37,42 +37,50 @@ class LLMService:
         system_prompt = """Je bent een slimme intent classifier voor een voedingstracking app.
 
 Je taak: Bepaal of de gebruiker:
-1. **QUESTION**: Een vraag stelt over hun statistieken/voortgang
-2. **LOG_DATA**: Maaltijd, workout of supplement wil loggen
-3. **CLARIFICATION_RESPONSE**: Antwoord geeft op een eerdere vraag van de assistent
+1. **QUESTION**: Een vraag stelt, om advies vraagt, reflecteert of in gesprek is
+2. **LOG_DATA**: ACTIEF iets wil loggen (maaltijd, workout, supplement) - moet concrete data bevatten
+
+🔍 **QUESTION** herken je aan:
+- Vraagwoorden: hoe, wat, hoeveel, waarom, wanneer + ?
+- Adviesvragen: "tips", "verbeterpunten", "wat denk je"
+- Reflectie/plannen: "ik ga...", "ik denk dat...", "misschien moet ik..."
+- Conversationeel: vervolg op eerdere discussie zonder concrete data
+- Evaluatie: "dit werkt (niet)", "ik merk dat...", "ik voel..."
+
+✅ **LOG_DATA** herken je aan:
+- Concrete voedsel: "2 eieren", "pizza margherita", "300g kipfilet"
+- Concrete workout: "1 uur hardlopen", "benchpress 3x8", "leg day"
+- Concrete supplement: "creatine 5g", "vitamine D3 1000mcg"
+- Tijdsindicatie + voedsel/workout: "ontbijt: havermout", "net gesport"
+- Korte clarification antwoorden: "200 gram", "normaal bord", "met mayo"
+
+❌ **NIET log_data** (maar question):
+- "Ik denk dat ik het altijd ga doen na het eten" → reflectie/plan
+- "Dit werkt goed voor mij" → evaluatie
+- "Misschien moet ik meer protein eten" → overweging
+- "Ik ga proberen meer te bewegen" → intentie
+- "Vaak heb ik nog honger 's avonds" → observatie
 
 Voorbeelden QUESTION:
 - "Hoe gaat het deze week?"
 - "Haal ik genoeg protein?"
-- "Hoeveel heb ik gesport?"
-- "Zit ik op schema?"
-- "Wat zijn mijn gemiddeldes?"
-- "Heb je nog tips voor mij?"
-- "Wat kan ik verbeteren?"
-- "Geef advies op basis van mijn data"
+- "Heb je tips voor mij?"
+- "Ik denk dat ik het gewoon altijd ga doen ook na het avondeten"
+- "Dit werkt goed, ik merk verschil"
+- "Misschien moet ik eerder ontbijten"
 
 Voorbeelden LOG_DATA:
 - "2 eieren met toast"
 - "Pizza margherita gegeten"
-- "Uurtje hardlopen gedaan"
-- "Vitamine D3 1000mcg genomen"
+- "1 uur hardlopen gedaan"
+- "Creatine 5g genomen"
 - "Ontbijt: havermout met banaan"
-
-Voorbeelden CLARIFICATION_RESPONSE (als context eerdere vraag van assistent bevat):
-- "Ongeveer 200 gram" (antwoord op: "Hoeveel rijst?")
-- "Normaal bord" (antwoord op: "Klein of groot bord?")
-- "Met mayonaise" (antwoord op: "Met welke saus?")
-
-Belangrijk:
-- Als conversation_history eindigt met een vraag van de assistent → waarschijnlijk CLARIFICATION_RESPONSE
-- Korte antwoorden na assistent vragen = CLARIFICATION_RESPONSE
-- Vraagwoorden (hoe, wat, hoeveel) + '?' = meestal QUESTION
-- Vragen om advies, tips of verbeterpunten = QUESTION
-- Voedsel/activiteit beschrijvingen = LOG_DATA
+- "200 gram" (clarification)
+- "Normaal bord" (clarification)
 
 Retourneer ALLEEN valide JSON:
 {
-  "intent": "question" | "log_data" | "clarification_response",
+  "intent": "question" | "log_data",
   "confidence": 0.95
 }"""
 
@@ -91,6 +99,11 @@ Retourneer ALLEEN valide JSON:
             'temperature': 0.1,
             'max_tokens': 100
         }
+
+        print(f"\n=== INTENT CLASSIFICATION ===")
+        print(f"Model: {payload['model']}")
+        print(f"User message: {text}")
+        print(f"History messages: {len(conversation_history) if conversation_history else 0}")
 
         try:
             response = requests.post(self.base_url, headers=self.headers, json=payload, timeout=30)
@@ -116,6 +129,9 @@ Retourneer ALLEEN valide JSON:
                     parsed['intent'] = 'log_data'  # Default fallback
                 if 'confidence' not in parsed:
                     parsed['confidence'] = 0.5
+                
+                print(f"Intent result: {parsed['intent']} (confidence: {parsed['confidence']})")
+                print(f"==========================\n")
                 
                 return parsed
             else:
@@ -143,7 +159,19 @@ Retourneer ALLEEN valide JSON:
         }
         """
         
-        system_prompt = """Je bent een expert voedings- en fitness assistent die zeer nauwkeurig maaltijden en workouts analyseert.
+        # Load user profile from qa_instructions.txt for context
+        user_context = ""
+        try:
+            with open('app/prompts/qa_instructions.txt', 'r', encoding='utf-8') as f:
+                user_context = f.read().strip()
+                if user_context:
+                    user_context = f"\n\n*Gebruikerscontext (gebruik waar relevant voor clarificatie):*\n{user_context}\n"
+        except FileNotFoundError:
+            pass
+        except Exception as e:
+            print(f"Warning: Could not load user context: {e}")
+        
+        system_prompt = f"""Je bent een expert voedings- en fitness assistent die zeer nauwkeurig maaltijden en workouts analyseert.
 
 Je taak:
 1. Analyseer de gebruikersinput voor maaltijden en/of workouts
@@ -156,14 +184,15 @@ Beslissingslogica:
 - **COMPLETE**: Informatie is verwerkt.
   * Als er maaltijden/workouts zijn: bereken en geef korte samenvatting in 'summary'.
   * Als er ECHT geen data te vinden is (bijv. "test" of random tekst): return empty meals/workouts arrays.
-- **NEEDS_CLARIFICATION**: Essentiële details ontbreken voor accurate schatting → stel slimme, specifieke vraag
+- **NEEDS_CLARIFICATION**: Essentiële details ontbreken voor accurate schatting → stel slimme, specifieke vraag (of vragen)
   * Focus op: portiegroottes, bereidingswijze, type ingrediënten, intensiteit workout
-  * Vraag alleen naar ESSENTIËLE info, geen perfectie
-  * Je mag MEERDERE opvolgvragen stellen om tot een accurate schatting te komen
-  * Voorbeeld: "Hoeveel rijst ongeveer? Een klein of groot bord?"
+  * *Gebruik gebruikerscontext waar relevant*: bijv. als gebruiker in cut zit, vraag naar exactere porties. Als workout info nodig is, hou rekening met trainingsschema.
+  * Je mag MEERDERE vragen in één keer stellen voor een complete schatting
+  * Je mag ook MEERDERE opvolgvragen over meerdere exchanges stellen
+  * Voorbeeld: "Hoeveel rijst ongeveer (klein/normaal/groot bord)? En met welke saus (en hoeveel)?"
 
 BELANGRIJK: Als het duidelijk een vraag is (niet data loggen), geef dan gewoon COMPLETE terug met lege arrays. De intent classifier haalt deze er normaal al uit.
-
+{user_context}
 REALISTISCHE SCHATTINGSRICHTLIJNEN (Nederlandse porties):
 
 **BASIS INGREDIËNTEN:**
@@ -259,14 +288,14 @@ Creatine (g):
 - Rood vlees (100g): 0.3-0.4 g (meestal te weinig om significant te zijn)
 - Supplement: parse exacte dosering (meestal 3-5 g)
 
-**WORKOUTS (per uur, gemiddeld 75kg persoon):**
-- Wandelen rustig: 200-250 kcal/uur
-- Hardlopen (10 km/u): 600-700 kcal/uur
-- Fietsen normaal: 400-500 kcal/uur
-- Krachttraining matig: 300-400 kcal/uur
-- Krachttraining intensief: 450-550 kcal/uur
-- Zwemmen: 400-600 kcal/uur
-- HIIT training: 500-700 kcal/uur
+**WORKOUTS (per uur, gemiddeld 85kg persoon):**
+- Wandelen rustig: 220-280 kcal/uur
+- Hardlopen (10 km/u): 680-790 kcal/uur
+- Fietsen normaal: 450-560 kcal/uur
+- Krachttraining matig: 340-450 kcal/uur
+- Krachttraining intensief: 510-620 kcal/uur
+- Zwemmen: 450-680 kcal/uur
+- HIIT training: 560-790 kcal/uur
 
 **BELANGRIJKE AANNAMES:**
 - "Met saus" zonder specificatie → schat ROYAAL (1.5-2 eetlepels = 80-120 kcal gemiddeld)
@@ -280,7 +309,7 @@ Creatine (g):
 
 Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
 {
-  "status": "complete" | "needs_clarification" | "no_data",
+  "status": "complete" | "needs_clarification",
   "meals": [
     {
       "description": "Zeer specifieke beschrijving inclusief hoeveelheden (zodat dit als input kan hergebruikt worden, bijv: '2 gebakken eieren op 2 sneetjes volkorenbrood')",
@@ -306,7 +335,7 @@ Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
       "calories_burned": 280
     }
   ],
-  "clarification_question": "Optionele vraag bij needs_clarification",
+  "clarification_question": "Optionele vraag of vragen bij needs_clarification (mag meerdere vragen in één string zijn)",
   "summary": "Optionele samenvatting bij complete: leg uit HOE je de calorieën/macros hebt berekend. Bijvoorbeeld: '2 eieren (150 kcal) + 2 sneetjes volkorenbrood (170 kcal) + 1 banaan (105 kcal) = 425 kcal totaal'. Wees specifiek en transparant in de berekening."
 }"""
 
@@ -327,6 +356,11 @@ Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
             'temperature': 0.2,  # Lagere temp voor consistentere output
             'max_tokens': 8192  # Increased for reasoning models
         }
+
+        print(f"\n=== FOOD/WORKOUT PARSING ===")
+        print(f"Model: {payload['model']}")
+        print(f"User message: {text}")
+        print(f"History messages: {len(conversation_history) if conversation_history else 0}")
 
         try:
             # Increased timeout for reasoning models
@@ -374,6 +408,11 @@ Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
                 if 'workouts' not in parsed:
                     parsed['workouts'] = []
                 
+                print(f"Parsing result: status={parsed['status']}, meals={len(parsed['meals'])}, workouts={len(parsed['workouts'])}")
+                if parsed.get('clarification_question'):
+                    print(f"Clarification: {parsed['clarification_question']}")
+                print(f"============================\n")
+                
                 return parsed
             else:
                 print(f"LLM Error: {response.status_code} - {response.text}")
@@ -387,7 +426,7 @@ Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
             print(f"Error parsing with LLM: {e}")
             return {"status": "complete", "meals": [], "workouts": []}
 
-    def answer_question_with_stats(self, question: str, daily_stats: dict, weekly_stats: dict, recent_workouts: list = None, conversation_history: list = None) -> str:
+    def answer_question_with_stats(self, question: str, daily_stats: dict, weekly_stats: dict, user_goals: dict = None, recent_workouts: list = None, conversation_history: list = None) -> str:
         """
         Answer user questions using their daily and weekly statistics.
         
@@ -395,6 +434,7 @@ Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
             question: User's question
             daily_stats: Today's totals from get_daily_totals()
             weekly_stats: Weekly averages from get_weekly_averages()
+            user_goals: User's daily goals (calories, protein, carbs, fat)
             recent_workouts: List of workout dictionaries from last 7 days
             conversation_history: List of previous messages
         
@@ -402,41 +442,74 @@ Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
             Natural language answer to the question
         """
         
-        system_prompt = """Je bent een persoonlijke voedings- en fitness assistent die vragen beantwoordt op basis van iemands tracking data.
+        # Load extra instructions from file if available
+        extra_instructions = ""
+        try:
+            with open('app/prompts/qa_instructions.txt', 'r', encoding='utf-8') as f:
+                extra_instructions = f.read().strip()
+                if extra_instructions:
+                    extra_instructions = f"\n\n*Extra Instructies:*\n{extra_instructions}"
+        except FileNotFoundError:
+            pass  # File doesn't exist yet, skip
+        except Exception as e:
+            print(f"Warning: Could not load qa_instructions.txt: {e}")
+        
+        system_prompt = f"""Je bent een Performance & Health Analyst — een data-gedreven assistent voor het optimaliseren van fysieke prestaties en gezondheid.
 
-Je krijgt:
+*Je Aanpak:*
+- *Analyseer de Waarom*: Leg fysiologische mechanismen uit waar relevant (bijv. waarom protein belangrijk is voor herstel)
+- *Geef Concrete Protocollen*: Vertaal inzichten naar praktische stappen (bijv. timing van maaltijden, workout planning)
+- *Houd Rekening met Context*: Pas advies aan op basis van recente workouts, energieniveau, doelen
+- *Gebruik Hiërarchie*: Onderscheid essentials (calorieën, protein) van optimalisaties (micronutriënten, timing)
+- *9+ Keuzes*: Geef realistisch, duurzaam advies dat 90% van de winst oplevert
+
+*Focusgebieden:*
+Training • Herstel • Voeding • Slaap • Stressregulatie • Focus
+
+*Data die je krijgt:*
 1. De vraag van de gebruiker
-2. De dagwaardes van VANDAAG
-3. De weekgemiddeldes van de AFGELOPEN 7 DAGEN
-4. Een lijst met alle WORKOUTS van de afgelopen 7 dagen
-5. De voorgaande conversatie (indien beschikbaar)
+2. Dagelijkse doelen en huidige intake (vandaag + weekgemiddelde)
+3. Workout historie van de afgelopen 7 dagen
+4. Eerdere conversatie (indien beschikbaar)
 
-BELANGRIJKE INSTRUCTIES:
-- Beantwoord de vraag direct en bondig
+*Antwoordstijl:*
+- *BONDIG*: Max 4-5 alinea's (korte paragrafen)
 - Gebruik concrete cijfers uit de data
-- Vergelijk dag vs week gemiddeldes waar relevant
-- Gebruik de specifieke workout historie voor advies over planning/herstel
-- Geef context: is dit goed/slecht? Hoe verhoudt het zich tot typische doelen?
-- Geef praktische tips (bijv. meal planning, rustdagen) als dat past bij de vraag
+- Leg het _waarom_ uit bij advies (mechanisme)
+- Geef praktische stappen (protocol)
+- Vergelijk huidige prestaties met doelen
 - Gebruik emojis voor leesbaarheid
-- Maximaal 3-4 zinnen tenzij complexe vraag
-- Als er gerefereerd wordt naar eerdere berichten, gebruik de conversatie geschiedenis
 
-VOORBEELDEN:
+*TELEGRAM MARKDOWN (BELANGRIJK):*
+- Gebruik *tekst* voor bold (enkele sterren)
+- Gebruik _tekst_ voor italic (enkele underscores)
+- VERBODEN: ** (dubbele sterren), __ (dubbele underscores), ### (headers), > (quotes), ``` (code blocks)
+- Houd het simpel: vooral gewone tekst met af en toe *nadruk* en emojis 💪
+
+*Voorbeelden:*
 
 Vraag: "Hoe gaat het deze week?"
-→ "Deze week zit je gemiddeld op 2150 kcal per dag (doel: 2000) en 145g protein 💪. Vandaag heb je 1850 kcal en 140g protein. Je zit consistent rond je doel - goed bezig!"
+→ "Deze week zit je gemiddeld op 2150 kcal per dag (doel: 2000) en 145g protein 💪. Vandaag 1850 kcal en 140g protein. Je zit consistent rond je doel - goed bezig!"
 
 Vraag: "Haal ik genoeg protein?"
-→ "Deze week gemiddeld 145g protein per dag, vandaag 140g. Voor spiergroei wordt 1.6-2.2g per kg lichaamsgewicht aanbevolen. Als je ~75kg bent zit je ruim goed! 💪"
+→ "Deze week gemiddeld 145g protein/dag, vandaag 140g. Voor spiergroei en herstel wordt 1.6-2.2g per kg lichaamsgewicht aanbevolen (_mechanisme_: stimuleert muscle protein synthesis). Bij ~85kg zit je ruim goed! 💪"
 
 Vraag: "Hoe moet ik mijn workouts plannen?"
-→ "Je hebt de afgelopen 3 dagen hardgelopen en krachttraining gedaan (borst/triceps). Gezien de intensiteit zou ik vandaag een rustdag nemen of lichte cardio doen (wandelen/fietsen) voor herstel. 🧘‍♂️"
+→ "Je hebt 3 dagen achter elkaar getraind (legs, push, cardio). Herstel is cruciaal voor adaptatie - zonder rust geen vooruitgang. *Protocol*: vandaag rustdag of lichte mobility work (wandelen 20-30 min). Morgen kun je weer volledig hersteld aanpakken. 🧘‍♂️"
 
-Blijf vriendelijk, motiverend en feitelijk."""
+Vraag: "Wat zijn verbeterpunten?"
+→ "Je calorieën en protein zijn consistent op doel ✅. *Verbeterpunt*: Je omega-3 intake is laag (gemiddeld 200mg vs aanbevolen 250-500mg EPA+DHA voor ontstekingsremming en herstel). Simpele fix: 2x/week vette vis of dagelijks visolie supplement. 🐟"
+
+Blijf wetenschappelijk onderbouwd, praktisch en motiverend.{extra_instructions}"""
 
         # Format the stats data for the LLM
-        stats_context = f"""**VANDAAG:**
+        stats_context = f"""**DAGELIJKSE DOELEN:**
+- Calorieën: {user_goals.get('daily_calories', 'Niet ingesteld')} kcal
+- Protein: {user_goals.get('daily_protein', 'Niet ingesteld')}g
+- Carbs: {user_goals.get('daily_carbs', 'Niet ingesteld')}g
+- Vet: {user_goals.get('daily_fat', 'Niet ingesteld')}g
+
+**VANDAAG:**
 - Calorieën: {daily_stats['total_calories']} kcal (netto: {daily_stats['net_calories']} kcal)
 - Protein: {daily_stats['total_protein']:.1f}g
 - Carbs: {daily_stats['total_carbs']:.1f}g
@@ -497,6 +570,12 @@ Blijf vriendelijk, motiverend en feitelijk."""
             'max_tokens': 8192  # Increased for reasoning models
         }
 
+        print(f"\n=== QUESTION ANSWERING ===")
+        print(f"Model: {payload['model']}")
+        print(f"Question: {question}")
+        print(f"History messages: {len(conversation_history) if conversation_history else 0}")
+        print(f"Stats context length: {len(stats_context)} chars")
+
         try:
             # Increased timeout for reasoning models
             response = requests.post(self.base_url, headers=self.headers, json=payload, timeout=90)
@@ -504,6 +583,8 @@ Blijf vriendelijk, motiverend en feitelijk."""
             if response.status_code == 200:
                 result = response.json()
                 answer = result['choices'][0]['message']['content'].strip()
+                print(f"Answer: {answer[:200]}{'...' if len(answer) > 200 else ''}")
+                print(f"==========================\n")
                 return answer
             else:
                 print(f"LLM Error (question): {response.status_code} - {response.text}")

@@ -1,0 +1,73 @@
+# Extra informatie voor Q/A
+
+*Gebruikersprofiel:*
+
+Fysieke kenmerken:
+- Leeftijd: 26 jaar
+- Geslacht: Man
+- Gewicht: 86 kg
+- Lengte: 179 cm
+- Lichaamsvet: ~18% (schatting, niet gemeten)
+
+Trainingservaring:
+- Niveau: Intermediate
+- Achtergrond: 10 jaar inconsistent getraind, jeugdkampioen roeien
+- Huidige focus: Gym + hardlopen
+- Frequentie: 4-5x per week
+
+Huidige trainingsfase/doel:
+- Primair doel: Afvallen met spierbehoud (bench is uitzondering: progressie)
+- Secundair doel: Algemene gezondheid
+- Fase: Cut
+- Specifieke prioriteit: *Bench press* - expliciete focus op progressie tijdens cut
+
+Trainingsschema:
+- Split: Upper/Lower + cardio
+- Weekplanning (richtlijn, flexibel):
+  * Ma: Upper
+  * Di: Zone 2 cardio
+  * Wo: Lower
+  * Do: Zone 2 cardio
+  * Vrij: Upper
+  * Za: VO2Max intervals
+  * Zo: Rust
+- Volume: ~12-16 sets per spiergroep/week
+- Intensiteit: Compounds 5-8 reps, accessoires 8-12 reps
+
+Sterkte-indicatoren (laatste 4-6 weken):
+- *Bench press* (prioriteitslift):
+  * Werksets: 80-85 kg
+  * Beste prestatie: 85 kg × 5 reps
+  * Variabiliteit: soms "weak" gevoel op 80 kg, andere dagen sterk
+  * Hoge centrale vermoeidheid (merkbaar effect op pull-ups)
+  
+- *Pull-ups* (lichaamsgewicht):
+  * Typisch bereik: 4-8 reps
+  * Prestaties dalen na zware benchsessies
+  
+- *Squat*:
+  * Werksets: 80 kg
+  * Techniek aandachtspunt: eerste drive niet volledig verticaal, heup schiet licht achteruit
+  * Conservatieve opbouw, pas richting 100 kg na stabiele weken
+  
+- *Deadlift* (meest consistente lift):
+  * Werksets: 110-115 kg (voelt sterk en controleerbaar)
+  * 135 kg geprobeerd → te zware belasting onderrug → bewust teruggeschakeld
+  * Aanpak: Submaximaal, techniek en herstel prioriteit
+
+Lifestyle & context:
+- Slaap: 7-8 uur per nacht (gemiddeld)
+- Stressniveau: Gemiddeld
+- Werk: Student
+- Beperkingen: Rechterrug sterker dan links, neemt over tijdens zware bench
+
+Voedingsvoorkeuren:
+- Dieet: Alles
+- Allergieën/intoleranties: Geen
+- Meal timing: 3 grote maaltijden + snacks
+
+*Context voor advies:*
+- Cut-fase: hou rekening met herstelcapaciteit en energieniveau
+- Bench is uitzondering op "maintenance": progressie blijft doel
+- Techniek squat en deadlift belangrijker dan gewicht pushen
+- Centrale vermoeidheid van bench beïnvloedt pull-prestaties (programmering)
