@@ -257,10 +257,26 @@ Vitamine B12 (mcg):
 - Zuivel (glas melk): 1 mcg
 - Supplement: parse exacte dosering
 
-Omega-3 EPA+DHA (mg):
-- Vette vis (zalm/makreel 100g): 1500-2500 mg
-- Visolie supplement: parse exacte dosering (meestal 250-1000 mg)
-- Algenolie: parse exacte dosering
+Omega-3 ALA (plant-based, mg):
+- Lijnzaad (eetlepel): 2400 mg
+- Walnoten (30g): 2500 mg
+- Chiazaad (eetlepel): 2100 mg
+- Lijnzaadolie (eetlepel): 7200 mg
+- Supplement: parse exacte dosering
+
+Omega-3 EPA+DHA (marine-based, mg):
+- Zalm (100g): 1500-2500 mg
+- Makreel (100g): 2000-3000 mg
+- Sardines (100g): 1500-2000 mg
+- Haring (100g): 1700-2300 mg
+- Tonijn (100g): 200-300 mg (laag!)
+- Visolie supplement: parse exacte dosering (meestal 250-1000 mg EPA+DHA)
+- Algenolie supplement: parse exacte dosering
+
+⚠️ BELANGRIJK: ALA en EPA/DHA zijn APARTE velden!
+- ALA wordt inefficiënt geconverteerd (~5-10%)
+- EPA/DHA is de doelvorm voor hart/hersenen
+- Log ze ALTIJD apart
 
 Magnesium (mg):
 - Spinazie (100g): 80 mg
@@ -288,6 +304,26 @@ Creatine (g):
 - Rood vlees (100g): 0.3-0.4 g (meestal te weinig om significant te zijn)
 - Supplement: parse exacte dosering (meestal 3-5 g)
 
+Vezels (g):
+- Volkoren brood (snee): 2-3g
+- Havermout (50g): 5g
+- Broccoli (100g): 2.5g
+- Appel: 4g
+- Lijnzaad (eetlepel): 3g
+
+Suiker (g):
+- Let op toegevoegde suikers in verwerkte producten
+- Fruit bevat natuurlijke suikers (banaan: 14g, appel: 19g)
+- Cola (330ml): 35g
+- Yoghurt met fruit: 15-20g
+
+Verzadigd Vet (g):
+- Kaas (30g): 5-7g
+- Boter (10g): 5g
+- Volle melk (200ml): 4.5g
+- Gehakt (100g): 7-8g
+- Kokosolie (eetlepel): 12g
+
 **WORKOUTS (per uur, gemiddeld 85kg persoon):**
 - Wandelen rustig: 220-280 kcal/uur
 - Hardlopen (10 km/u): 680-790 kcal/uur
@@ -308,36 +344,40 @@ Creatine (g):
 - Bij onzekerheid: liever 10-15% te hoog schatten dan te laag
 
 Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
-{
+{{
   "status": "complete" | "needs_clarification",
   "meals": [
-    {
-      "description": "Zeer specifieke beschrijving inclusief hoeveelheden (zodat dit als input kan hergebruikt worden, bijv: '2 gebakken eieren op 2 sneetjes volkorenbrood')",
+    {{
+      "description": "Zeer specifieke beschrijving inclusief hoeveelheden (zodat dit als input kan hergebruikt worden, bijv: 2 gebakken eieren op 2 sneetjes volkorenbrood)",
       "calories": 650,
       "protein": 35.0,
       "carbs": 75.0,
       "fat": 18.0,
+      "fiber": 5.0,
+      "sugar": 8.0,
+      "saturated_fat": 3.0,
       "vitamin_d": 10.0,
       "vitamin_c": 50.0,
       "vitamin_b12": 2.5,
-      "omega3": 1500.0,
+      "omega3_ala": 0.0,
+      "omega3_epa_dha": 1500.0,
       "magnesium": 80.0,
       "calcium": 240.0,
       "iron": 3.0,
       "zinc": 4.0,
       "creatine": 0.0
-    }
+    }}
   ],
   "workouts": [
-    {
-      "description": "Gedetailleerde beschrijving incl. intensiteit/snelheid (zodat dit als input kan hergebruikt worden, bijv: 'Hardlopen 10km/u')",
+    {{
+      "description": "Gedetailleerde beschrijving incl. intensiteit/snelheid (zodat dit als input kan hergebruikt worden, bijv: Hardlopen 10km/u)",
       "duration_minutes": 60,
       "calories_burned": 280
-    }
+    }}
   ],
   "clarification_question": "Optionele vraag of vragen bij needs_clarification (mag meerdere vragen in één string zijn)",
-  "summary": "Optionele samenvatting bij complete: leg uit HOE je de calorieën/macros hebt berekend. Bijvoorbeeld: '2 eieren (150 kcal) + 2 sneetjes volkorenbrood (170 kcal) + 1 banaan (105 kcal) = 425 kcal totaal'. Wees specifiek en transparant in de berekening."
-}"""
+  "summary": "Optionele samenvatting bij complete: leg uit HOE je de calorieën/macros hebt berekend. Bijvoorbeeld: 2 eieren (150 kcal) + 2 sneetjes volkorenbrood (170 kcal) + 1 banaan (105 kcal) = 425 kcal totaal. Wees specifiek en transparant in de berekening."
+}}"""
 
         # Build messages array with conversation history
         messages = [{"role": "system", "content": system_prompt}]
@@ -492,6 +532,12 @@ STRESS:
 - 50-75 = hoog (meer rust nodig)
 - >75 = zeer hoog (actie vereist)
 
+OMEGA-3 TYPEN:
+- ALA (plant-based): lijnzaad, walnoten — wordt inefficiënt geconverteerd (~5-10%)
+- EPA/DHA (marine): vette vis, visolie — dit is de doelvorm!
+- Doel: minimaal 2000mg EPA/DHA per dag voor ontstekingsremming en herstel
+- Bronnen: zalm, makreel, sardines, haring (100g = 1500-2500mg)
+
 *Antwoordstijl:*
 - *BONDIG*: Max 4-5 alinea's (korte paragrafen)
 - Gebruik concrete cijfers uit de data
@@ -501,10 +547,21 @@ STRESS:
 - Gebruik emojis voor leesbaarheid
 - Correleer health metrics met performance (bijv. "Slechte slaap + zware training gisteren = rust vandaag")
 
-*TELEGRAM MARKDOWN (BELANGRIJK):*
-- Gebruik *tekst* voor bold (enkele sterren)
-- Gebruik _tekst_ voor italic (enkele underscores)
-- VERBODEN: ** (dubbele sterren), __ (dubbele underscores), ### (headers), > (quotes), ``` (code blocks)
+*TELEGRAM FORMATTING REGELS (STRIKT):*
+- Gebruik *tekst* voor nadruk (bold) - ALTIJD sluiten met *
+- Gebruik GEEN underscores _ - deze breken formatting
+- Gebruik GEEN dubbele asterisks ** 
+- Gebruik GEEN andere markdown: # > ``` [] ()
+- Bullets: gebruik gewoon - (dash + spatie)
+- Getallen/eenheden: schrijf normaal (1000 kcal, niet 1000kcal)
+- Emoji's zijn OK maar geen special chars na emoji
+- Check ALTIJD: elke * die je opent moet je ook sluiten
+
+VOORBEELD GOED:
+"Je calorieen zijn op doel (2000 kcal) maar protein is laag *slechts 120g van 150g doel*. Verhoog dit met 30g extra."
+
+VOORBEELD FOUT:
+"Je calorieën zijn **op doel** (2000 kcal) maar _protein_ is laag."
 - Houd het simpel: vooral gewone tekst met af en toe *nadruk* en emojis 💪
 
 *Voorbeelden:*
@@ -519,7 +576,7 @@ Vraag: "Hoe moet ik mijn workouts plannen?"
 → "Je hebt 3 dagen achter elkaar getraind (legs, push, cardio). Herstel is cruciaal voor adaptatie - zonder rust geen vooruitgang. *Protocol*: vandaag rustdag of lichte mobility work (wandelen 20-30 min). Morgen kun je weer volledig hersteld aanpakken. 🧘‍♂️"
 
 Vraag: "Wat zijn verbeterpunten?"
-→ "Je calorieën en protein zijn consistent op doel ✅. *Verbeterpunt*: Je omega-3 intake is laag (gemiddeld 200mg vs aanbevolen 250-500mg EPA+DHA voor ontstekingsremming en herstel). Simpele fix: 2x/week vette vis of dagelijks visolie supplement. 🐟"
+→ "Je calorieën en protein zijn consistent op doel ✅. *Verbeterpunt*: Je EPA/DHA intake is laag (gemiddeld 200mg vs aanbevolen 2000mg voor ontstekingsremming en herstel). ALA uit plantaardige bronnen wordt inefficiënt geconverteerd (~5-10%). Simpele fix: 2x/week vette vis (zalm/makreel) of dagelijks visolie supplement. 🐟"
 
 Blijf wetenschappelijk onderbouwd, praktisch en motiverend.{extra_instructions}"""
 
@@ -543,7 +600,8 @@ Blijf wetenschappelijk onderbouwd, praktisch en motiverend.{extra_instructions}"
 - Vitamine D: {daily_stats.get('vitamin_d', 0):.1f} mcg
 - Vitamine C: {daily_stats.get('vitamin_c', 0):.0f} mg
 - Vitamine B12: {daily_stats.get('vitamin_b12', 0):.1f} mcg
-- Omega-3: {daily_stats.get('omega3', 0):.0f} mg
+- Omega-3 ALA: {daily_stats.get('omega3_ala', 0):.0f} mg (plant-based)
+- Omega-3 EPA/DHA: {daily_stats.get('omega3_epa_dha', 0):.0f} mg (marine)
 - Magnesium: {daily_stats.get('magnesium', 0):.0f} mg
 - Calcium: {daily_stats.get('calcium', 0):.0f} mg
 - IJzer: {daily_stats.get('iron', 0):.1f} mg
@@ -563,7 +621,8 @@ Blijf wetenschappelijk onderbouwd, praktisch en motiverend.{extra_instructions}"
 - Vitamine D: {weekly_stats.get('avg_vitamin_d', 0):.1f} mcg/dag
 - Vitamine C: {weekly_stats.get('avg_vitamin_c', 0):.0f} mg/dag
 - Vitamine B12: {weekly_stats.get('avg_vitamin_b12', 0):.1f} mcg/dag
-- Omega-3: {weekly_stats.get('avg_omega3', 0):.0f} mg/dag
+- Omega-3 ALA: {weekly_stats.get('avg_omega3_ala', 0):.0f} mg/dag (plant)
+- Omega-3 EPA/DHA: {weekly_stats.get('avg_omega3_epa_dha', 0):.0f} mg/dag (marine) 🎯
 - Magnesium: {weekly_stats.get('avg_magnesium', 0):.0f} mg/dag
 - Calcium: {weekly_stats.get('avg_calcium', 0):.0f} mg/dag
 - IJzer: {weekly_stats.get('avg_iron', 0):.1f} mg/dag

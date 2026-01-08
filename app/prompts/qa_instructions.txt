@@ -21,6 +21,22 @@ Huidige trainingsfase/doel:
 - Fase: Cut
 - Specifieke prioriteit: *Bench press* - expliciete focus op progressie tijdens cut
 
+*Secundaire KPIs & Optimalisatiedoelen (hiërarchie):*
+Als je maandag start, focus dan op deze prioriteit:
+1. *Testosteron* (Basis vitaliteit)
+   - Slaap: 7-9u, diep slaap optimaliseren
+   - Vetten: Verzadigde vetten + omega-3 EPA/DHA
+   - Zink: 15-30mg/dag via voeding of supplement
+   
+2. *Bloedsuiker* (Energie management)
+   - Volgorde van eten: Vezels/eiwitten voor koolhydraten
+   - Stabiele energie = betere training + minder crash
+   
+3. *HRV* (Herstel management)
+   - Stressregulatie: Ademhaling, mindfulness
+   - HRV tracking via Garmin
+   - Hoge HRV = groen licht voor intensieve training
+
 Trainingsschema:
 - Split: Upper/Lower + cardio
 - Weekplanning (richtlijn, flexibel):

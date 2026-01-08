@@ -1,3 +1,4 @@
+import asyncio
 import pytz
 from datetime import datetime
 from telegram import Update
@@ -11,15 +12,15 @@ from app.config import BotConfig
 # Format: {user_id: {"messages": [...], "waiting_for_clarification": bool}}
 conversation_context = {}
 
-async def _keep_typing(bot, chat_id: int) -> None:
-    """Keep sending typing indicator every 4 seconds until cancelled."""
+async def _send_typing_periodically(bot, chat_id: int):
+    """Sends typing action periodically until the task is cancelled."""
     import asyncio
     try:
         while True:
             await bot.send_chat_action(chat_id=chat_id, action='typing')
-            await asyncio.sleep(4)
+            await asyncio.sleep(4)  # Telegram's typing action lasts for 5 seconds
     except asyncio.CancelledError:
-        pass  # Task was cancelled, stop gracefully
+        pass
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start command."""
@@ -330,9 +331,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             # Get health metrics (sleep, HR, stress)
             health_metrics = supabase_client.get_health_metrics(user['id'], week_start, today)
             
-            # Start persistent typing indicator (repeats every 4 seconds)
-            import asyncio
-            typing_task = asyncio.create_task(_keep_typing(context.bot, update.effective_chat.id))
+            # Start sending 'typing...' action in the background
+            typing_task = asyncio.create_task(_send_typing_periodically(context.bot, update.effective_chat.id))
             
             try:
                 # Get answer from LLM
@@ -346,17 +346,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     conversation_history=conversation_context[telegram_id]["messages"][:-1]
                 )
             finally:
-                # Stop typing indicator
+                # Stop the 'typing...' action
                 typing_task.cancel()
             
             conversation_context[telegram_id]["messages"].append({"role": "assistant", "content": answer})
             
-            # Try markdown first, fallback to plain text if parsing fails
+            # Try Markdown, fallback to plain text if it fails
             try:
                 await update.message.reply_text(answer, parse_mode='Markdown')
             except Exception as e:
-                print(f"⚠️ Markdown parsing failed, sending plain text: {e}")
-                await update.message.reply_text(answer)
+                print(f"⚠️ Markdown parsing failed: {e}")
+                # Remove markdown formatting and send as plain text
+                import re
+                plain_answer = re.sub(r'[*_`\[\]]', '', answer)  # Remove common markdown chars
+                await update.message.reply_text(plain_answer)
             return
         
         # Otherwise (log_data): parse for food/workouts
@@ -394,10 +397,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 carbs=meal['carbs'],
                 fat=meal['fat'],
                 date=today,
+                fiber=meal.get('fiber', 0),
+                sugar=meal.get('sugar', 0),
+                saturated_fat=meal.get('saturated_fat', 0),
                 vitamin_d=meal.get('vitamin_d', 0),
                 vitamin_c=meal.get('vitamin_c', 0),
                 vitamin_b12=meal.get('vitamin_b12', 0),
-                omega3=meal.get('omega3', 0),
+                omega3_ala=meal.get('omega3_ala', 0),
+                omega3_epa_dha=meal.get('omega3_epa_dha', 0),
                 magnesium=meal.get('magnesium', 0),
                 calcium=meal.get('calcium', 0),
                 iron=meal.get('iron', 0),

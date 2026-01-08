@@ -80,8 +80,9 @@ class SupabaseClient:
     
     def add_meal(self, user_id: int, description: str, calories: int, 
                 protein: float, carbs: float, fat: float, date: str = None,
+                fiber: float = 0, sugar: float = 0, saturated_fat: float = 0,
                 vitamin_d: float = 0, vitamin_c: float = 0, vitamin_b12: float = 0,
-                omega3: float = 0, magnesium: float = 0, calcium: float = 0,
+                omega3_ala: float = 0, omega3_epa_dha: float = 0, magnesium: float = 0, calcium: float = 0,
                 iron: float = 0, zinc: float = 0, creatine: float = 0) -> dict | None:
         """Add a meal entry with macros and micronutrients."""
         try:
@@ -92,10 +93,14 @@ class SupabaseClient:
                 'protein': protein,
                 'carbs': carbs,
                 'fat': fat,
+                'fiber': fiber,
+                'sugar': sugar,
+                'saturated_fat': saturated_fat,
                 'vitamin_d': vitamin_d,
                 'vitamin_c': vitamin_c,
                 'vitamin_b12': vitamin_b12,
-                'omega3': omega3,
+                'omega3_ala': omega3_ala,
+                'omega3_epa_dha': omega3_epa_dha,
                 'magnesium': magnesium,
                 'calcium': calcium,
                 'iron': iron,
@@ -196,11 +201,18 @@ class SupabaseClient:
         total_fat = sum(m['fat'] for m in meals)
         total_burned = sum(w['calories_burned'] for w in workouts)
         
+        # Sum basic nutrients
+        total_fiber = sum(m.get('fiber', 0) or 0 for m in meals)
+        total_sugar = sum(m.get('sugar', 0) or 0 for m in meals)
+        total_saturated_fat = sum(m.get('saturated_fat', 0) or 0 for m in meals)
+        
         # Sum vitamins/minerals
         total_vitamin_d = sum(m.get('vitamin_d', 0) or 0 for m in meals)
         total_vitamin_c = sum(m.get('vitamin_c', 0) or 0 for m in meals)
         total_vitamin_b12 = sum(m.get('vitamin_b12', 0) or 0 for m in meals)
-        total_omega3 = sum(m.get('omega3', 0) or 0 for m in meals)
+        total_omega3_ala = sum(m.get('omega3_ala', 0) or 0 for m in meals)
+        total_omega3_epa_dha = sum(m.get('omega3_epa_dha', 0) or 0 for m in meals)
+        total_omega3 = total_omega3_ala + total_omega3_epa_dha
         total_magnesium = sum(m.get('magnesium', 0) or 0 for m in meals)
         total_calcium = sum(m.get('calcium', 0) or 0 for m in meals)
         total_iron = sum(m.get('iron', 0) or 0 for m in meals)
@@ -212,6 +224,9 @@ class SupabaseClient:
             'total_protein': total_protein,
             'total_carbs': total_carbs,
             'total_fat': total_fat,
+            'fiber': total_fiber,
+            'sugar': total_sugar,
+            'saturated_fat': total_saturated_fat,
             'total_burned': total_burned,
             'net_calories': total_calories - total_burned,
             'meal_count': len(meals),
@@ -219,6 +234,8 @@ class SupabaseClient:
             'vitamin_d': total_vitamin_d,
             'vitamin_c': total_vitamin_c,
             'vitamin_b12': total_vitamin_b12,
+            'omega3_ala': total_omega3_ala,
+            'omega3_epa_dha': total_omega3_epa_dha,
             'omega3': total_omega3,
             'magnesium': total_magnesium,
             'calcium': total_calcium,
@@ -274,11 +291,18 @@ class SupabaseClient:
             total_fat = sum(m['fat'] for m in meals)
             total_burned = sum(w['calories_burned'] for w in workouts)
             
+            # Calculate totals - basic nutrients
+            total_fiber = sum(m.get('fiber', 0) or 0 for m in meals)
+            total_sugar = sum(m.get('sugar', 0) or 0 for m in meals)
+            total_saturated_fat = sum(m.get('saturated_fat', 0) or 0 for m in meals)
+            
             # Calculate totals - vitamins/minerals
             total_vitamin_d = sum(m.get('vitamin_d', 0) or 0 for m in meals)
             total_vitamin_c = sum(m.get('vitamin_c', 0) or 0 for m in meals)
             total_vitamin_b12 = sum(m.get('vitamin_b12', 0) or 0 for m in meals)
-            total_omega3 = sum(m.get('omega3', 0) or 0 for m in meals)
+            total_omega3_ala = sum(m.get('omega3_ala', 0) or 0 for m in meals)
+            total_omega3_epa_dha = sum(m.get('omega3_epa_dha', 0) or 0 for m in meals)
+            total_omega3 = total_omega3_ala + total_omega3_epa_dha
             total_magnesium = sum(m.get('magnesium', 0) or 0 for m in meals)
             total_calcium = sum(m.get('calcium', 0) or 0 for m in meals)
             total_iron = sum(m.get('iron', 0) or 0 for m in meals)
@@ -292,9 +316,15 @@ class SupabaseClient:
             avg_fat = total_fat / days_in_range if days_in_range > 0 else 0
             avg_burned = total_burned / days_in_range if days_in_range > 0 else 0
             
+            avg_fiber = total_fiber / days_in_range if days_in_range > 0 else 0
+            avg_sugar = total_sugar / days_in_range if days_in_range > 0 else 0
+            avg_saturated_fat = total_saturated_fat / days_in_range if days_in_range > 0 else 0
+            
             avg_vitamin_d = total_vitamin_d / days_in_range if days_in_range > 0 else 0
             avg_vitamin_c = total_vitamin_c / days_in_range if days_in_range > 0 else 0
             avg_vitamin_b12 = total_vitamin_b12 / days_in_range if days_in_range > 0 else 0
+            avg_omega3_ala = total_omega3_ala / days_in_range if days_in_range > 0 else 0
+            avg_omega3_epa_dha = total_omega3_epa_dha / days_in_range if days_in_range > 0 else 0
             avg_omega3 = total_omega3 / days_in_range if days_in_range > 0 else 0
             avg_magnesium = total_magnesium / days_in_range if days_in_range > 0 else 0
             avg_calcium = total_calcium / days_in_range if days_in_range > 0 else 0
@@ -308,6 +338,9 @@ class SupabaseClient:
                 'avg_protein': round(avg_protein, 1),
                 'avg_carbs': round(avg_carbs, 1),
                 'avg_fat': round(avg_fat, 1),
+                'avg_fiber': round(avg_fiber, 1),
+                'avg_sugar': round(avg_sugar, 1),
+                'avg_saturated_fat': round(avg_saturated_fat, 1),
                 'avg_burned': round(avg_burned, 1),
                 'avg_net_calories': round(avg_calories - avg_burned, 1),
                 'total_meals': len(meals),
@@ -315,6 +348,8 @@ class SupabaseClient:
                 'avg_vitamin_d': round(avg_vitamin_d, 1),
                 'avg_vitamin_c': round(avg_vitamin_c, 1),
                 'avg_vitamin_b12': round(avg_vitamin_b12, 2),
+                'avg_omega3_ala': round(avg_omega3_ala, 1),
+                'avg_omega3_epa_dha': round(avg_omega3_epa_dha, 1),
                 'avg_omega3': round(avg_omega3, 1),
                 'avg_magnesium': round(avg_magnesium, 1),
                 'avg_calcium': round(avg_calcium, 1),
@@ -349,7 +384,7 @@ class SupabaseClient:
                 'notes': notes
             }
             
-            response = self.client.table('sleep_logs').upsert(data).execute()
+            response = self.client.table('sleep').upsert(data).execute()
             return response.data[0] if response.data else None
         except Exception as e:
             print(f"Error adding sleep log: {e}")
@@ -371,7 +406,7 @@ class SupabaseClient:
                 'source': source
             }
             
-            response = self.client.table('heart_rate_logs').upsert(data).execute()
+            response = self.client.table('heart_rate').upsert(data).execute()
             return response.data[0] if response.data else None
         except Exception as e:
             print(f"Error adding heart rate log: {e}")
@@ -398,7 +433,7 @@ class SupabaseClient:
                 'notes': notes
             }
             
-            response = self.client.table('stress_logs').upsert(data).execute()
+            response = self.client.table('stress').upsert(data).execute()
             return response.data[0] if response.data else None
         except Exception as e:
             print(f"Error adding stress log: {e}")
@@ -407,7 +442,7 @@ class SupabaseClient:
     def get_health_metrics(self, user_id: int, start_date: str, end_date: str) -> dict:
         """Get sleep, HR, and stress data for date range."""
         try:
-            sleep = self.client.table('sleep_logs') \
+            sleep = self.client.table('sleep') \
                 .select('*') \
                 .eq('user_id', user_id) \
                 .gte('date', start_date) \
@@ -415,7 +450,7 @@ class SupabaseClient:
                 .order('date', desc=True) \
                 .execute()
             
-            hr = self.client.table('heart_rate_logs') \
+            hr = self.client.table('heart_rate') \
                 .select('*') \
                 .eq('user_id', user_id) \
                 .gte('date', start_date) \
@@ -423,7 +458,7 @@ class SupabaseClient:
                 .order('date', desc=True) \
                 .execute()
             
-            stress = self.client.table('stress_logs') \
+            stress = self.client.table('stress') \
                 .select('*') \
                 .eq('user_id', user_id) \
                 .gte('date', start_date) \
