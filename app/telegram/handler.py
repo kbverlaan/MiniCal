@@ -196,9 +196,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Add current user message to context
     conversation_context[telegram_id].append({"role": "user", "content": text})
     
-    # Keep only last 10 messages (5 exchanges) to avoid token limits
-    if len(conversation_context[telegram_id]) > 10:
-        conversation_context[telegram_id] = conversation_context[telegram_id][-10:]
+    # Keep history within limits (max of configured Q/A history or 10 for intent context)
+    max_history = max(BotConfig.MAX_HISTORY_MESSAGES, 10)
+    if len(conversation_context[telegram_id]) > max_history:
+        conversation_context[telegram_id] = conversation_context[telegram_id][-max_history:]
     
     # First: classify the intent
     intent_result = llm_service.classify_intent(text, conversation_context[telegram_id][:-1])
@@ -224,7 +225,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         recent_workouts = supabase_client.get_workouts_for_range(user['id'], week_start, today)
         
         # Get answer from LLM
-        answer = llm_service.answer_question_with_stats(text, daily_stats, weekly_stats, recent_workouts)
+        answer = llm_service.answer_question_with_stats(
+            text, 
+            daily_stats, 
+            weekly_stats, 
+            recent_workouts,
+            conversation_history=conversation_context[telegram_id][:-1]
+        )
         
         conversation_context[telegram_id].append({"role": "assistant", "content": answer})
         await update.message.reply_text(answer)

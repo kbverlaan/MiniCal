@@ -380,7 +380,7 @@ Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
             print(f"Error parsing with LLM: {e}")
             return {"status": "complete", "meals": [], "workouts": []}
 
-    def answer_question_with_stats(self, question: str, daily_stats: dict, weekly_stats: dict, recent_workouts: list = None) -> str:
+    def answer_question_with_stats(self, question: str, daily_stats: dict, weekly_stats: dict, recent_workouts: list = None, conversation_history: list = None) -> str:
         """
         Answer user questions using their daily and weekly statistics.
         
@@ -389,6 +389,7 @@ Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
             daily_stats: Today's totals from get_daily_totals()
             weekly_stats: Weekly averages from get_weekly_averages()
             recent_workouts: List of workout dictionaries from last 7 days
+            conversation_history: List of previous messages
         
         Returns:
             Natural language answer to the question
@@ -401,6 +402,7 @@ Je krijgt:
 2. De dagwaardes van VANDAAG
 3. De weekgemiddeldes van de AFGELOPEN 7 DAGEN
 4. Een lijst met alle WORKOUTS van de afgelopen 7 dagen
+5. De voorgaande conversatie (indien beschikbaar)
 
 BELANGRIJKE INSTRUCTIES:
 - Beantwoord de vraag direct en bondig
@@ -411,6 +413,7 @@ BELANGRIJKE INSTRUCTIES:
 - Geef praktische tips (bijv. meal planning, rustdagen) als dat past bij de vraag
 - Gebruik emojis voor leesbaarheid
 - Maximaal 3-4 zinnen tenzij complexe vraag
+- Als er gerefereerd wordt naar eerdere berichten, gebruik de conversatie geschiedenis
 
 VOORBEELDEN:
 
@@ -471,21 +474,25 @@ Blijf vriendelijk, motiverend en feitelijk."""
             for w in recent_workouts:
                 stats_context += f"- {w.get('date')}: {w.get('activity')} ({w.get('calories_burned')} kcal)\n"
 
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"MIJN DATA:\n{stats_context}\n\nMIJN VRAAG:\n{question}"}
-        ]
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        # Add conversation history if provided
+        if conversation_history:
+            limit = BotConfig.MAX_HISTORY_MESSAGES
+            messages.extend(conversation_history[-limit:])
+
+        messages.append({"role": "user", "content": f"MIJN DATA:\n{stats_context}\n\nMIJN VRAAG:\n{question}"})
 
         payload = {
             'model': BotConfig.MODEL_QUESTION_ANSWERING,
             'messages': messages,
-            'temperature': 0.7,  # Iets hoger voor natuurlijkere antwoorden
-            'max_tokens': 4096  # Increased for reasoning models
+            'temperature': 0.3,  # Iets hoger voor natuurlijkere antwoorden
+            'max_tokens': 8192  # Increased for reasoning models
         }
 
         try:
             # Increased timeout for reasoning models
-            response = requests.post(self.base_url, headers=self.headers, json=payload, timeout=60)
+            response = requests.post(self.base_url, headers=self.headers, json=payload, timeout=90)
             
             if response.status_code == 200:
                 result = response.json()

@@ -9,3 +9,6 @@ class BotConfig:
     
     # Timezone
     TIMEZONE = "Europe/Amsterdam"
+    
+    # Conversation History
+    MAX_HISTORY_MESSAGES = 10  # Aantal berichten in context (5 exchanges)
