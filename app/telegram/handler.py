@@ -134,6 +134,70 @@ Verschil: {totals['net_calories'] - user['daily_calories']:+d} kcal
     
     await update.message.reply_text(msg, parse_mode='Markdown')
 
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /help command - show available commands."""
+    help_msg = """🤖 **MiniCal Commands**
+
+📝 **Tracking**
+Stuur gewoon een bericht met wat je hebt gegeten, gedronken, of gesport.
+
+Voorbeelden:
+• "2 eieren met toast" → Maaltijd
+• "45 min krachttraining" → Workout  
+• "vitamine D3 genomen" → Supplement
+
+❓ **Vragen stellen**
+Gewoon je vraag stellen:
+• "Hoe gaat het deze week?"
+• "Haal ik genoeg protein?"
+• "Ben ik goed hersteld?"
+
+**Commands:**
+• `/start` - Welkomstbericht en setup
+• `/help` - Dit overzicht
+• `/today` - Statistieken van vandaag
+• `/setgoals` - Dagelijkse doelen aanpassen
+• `/sync` - Garmin data handmatig syncen
+
+🏃 **Garmin Sync**
+Automatisch 2x per dag (07:00 & 13:00):
+😴 Slaap • ❤️ Hartslag • 😰 Stress
+
+Let's go! 🚀"""
+    
+    await update.message.reply_text(help_msg)
+
+async def sync_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /sync command - manually trigger Garmin sync."""
+    from app.services.garmin_sync import GarminSyncService
+    
+    telegram_id = update.message.from_user.id
+    user = supabase_client.get_or_create_user(telegram_id)
+    
+    if not user:
+        await update.message.reply_text("❌ Gebruiker niet gevonden.")
+        return
+    
+    await update.message.reply_text("🔄 Garmin data syncen... Dit kan even duren.")
+    
+    try:
+        # Initialize sync service and run sync
+        sync_service = GarminSyncService(supabase_client)
+        result = sync_service.sync_health_data(user_id=user['id'], verbose=False)
+        
+        if result['success']:
+            if result['synced_data']:
+                msg = "✅ Garmin sync compleet!\n\n" + "\n".join(result['synced_data'])
+            else:
+                msg = "ℹ️ Geen nieuwe data beschikbaar. Probeer later opnieuw (data kan vertraagd zijn)."
+        else:
+            msg = f"❌ Sync mislukt: {result['error']}\n\nProbeer later opnieuw."
+        
+        await update.message.reply_text(msg)
+        
+    except Exception as e:
+        await update.message.reply_text(f"❌ Sync mislukt: {str(e)}\n\nProbeer later opnieuw.")
+
 async def setgoals_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /setgoals command."""
     telegram_id = update.message.from_user.id
@@ -263,6 +327,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             # Get recent workouts for detailed planning advice
             recent_workouts = supabase_client.get_workouts_for_range(user['id'], week_start, today)
             
+            # Get health metrics (sleep, HR, stress)
+            health_metrics = supabase_client.get_health_metrics(user['id'], week_start, today)
+            
             # Start persistent typing indicator (repeats every 4 seconds)
             import asyncio
             typing_task = asyncio.create_task(_keep_typing(context.bot, update.effective_chat.id))
@@ -275,6 +342,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     weekly_stats,
                     user_goals=user,
                     recent_workouts=recent_workouts,
+                    health_metrics=health_metrics,
                     conversation_history=conversation_context[telegram_id]["messages"][:-1]
                 )
             finally:
@@ -399,8 +467,10 @@ def setup_telegram_bot(bot_token: str) -> Application:
     
     # Command handlers
     application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("today", today_command))
     application.add_handler(CommandHandler("setgoals", setgoals_command))
+    application.add_handler(CommandHandler("sync", sync_command))
     
     # Message handler (should be last)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))

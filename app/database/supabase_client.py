@@ -326,5 +326,133 @@ class SupabaseClient:
             print(f"Error calculating weekly averages: {e}")
             return {}
 
+    # === HEALTH METRICS (Sleep, HR, Stress) ===
+    
+    def add_sleep_log(self, user_id: int, date: str, total_hours: float, 
+                     deep_hours: float = None, light_hours: float = None,
+                     rem_hours: float = None, awake_hours: float = None,
+                     quality_score: int = None, subjective_quality: int = None,
+                     source: str = 'manual', notes: str = None) -> dict | None:
+        """Add or update sleep log."""
+        try:
+            data = {
+                'user_id': user_id,
+                'date': date,
+                'total_hours': total_hours,
+                'deep_hours': deep_hours,
+                'light_hours': light_hours,
+                'rem_hours': rem_hours,
+                'awake_hours': awake_hours,
+                'quality_score': quality_score,
+                'subjective_quality': subjective_quality,
+                'source': source,
+                'notes': notes
+            }
+            
+            response = self.client.table('sleep_logs').upsert(data).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(f"Error adding sleep log: {e}")
+            return None
+    
+    def add_heart_rate_log(self, user_id: int, date: str, resting_hr: int = None,
+                          avg_hr: int = None, max_hr: int = None, min_hr: int = None,
+                          hrv_avg: int = None, source: str = 'garmin') -> dict | None:
+        """Add or update heart rate log."""
+        try:
+            data = {
+                'user_id': user_id,
+                'date': date,
+                'resting_hr': resting_hr,
+                'avg_hr': avg_hr,
+                'max_hr': max_hr,
+                'min_hr': min_hr,
+                'hrv_avg': hrv_avg,
+                'source': source
+            }
+            
+            response = self.client.table('heart_rate_logs').upsert(data).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(f"Error adding heart rate log: {e}")
+            return None
+    
+    def add_stress_log(self, user_id: int, date: str, avg_stress: int = None,
+                      max_stress: int = None, rest_minutes: int = None,
+                      activity_minutes: int = None, low_stress_minutes: int = None,
+                      medium_stress_minutes: int = None, high_stress_minutes: int = None,
+                      source: str = 'garmin', notes: str = None) -> dict | None:
+        """Add or update stress log."""
+        try:
+            data = {
+                'user_id': user_id,
+                'date': date,
+                'avg_stress': avg_stress,
+                'max_stress': max_stress,
+                'rest_minutes': rest_minutes,
+                'activity_minutes': activity_minutes,
+                'low_stress_minutes': low_stress_minutes,
+                'medium_stress_minutes': medium_stress_minutes,
+                'high_stress_minutes': high_stress_minutes,
+                'source': source,
+                'notes': notes
+            }
+            
+            response = self.client.table('stress_logs').upsert(data).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(f"Error adding stress log: {e}")
+            return None
+    
+    def get_health_metrics(self, user_id: int, start_date: str, end_date: str) -> dict:
+        """Get sleep, HR, and stress data for date range."""
+        try:
+            sleep = self.client.table('sleep_logs') \
+                .select('*') \
+                .eq('user_id', user_id) \
+                .gte('date', start_date) \
+                .lte('date', end_date) \
+                .order('date', desc=True) \
+                .execute()
+            
+            hr = self.client.table('heart_rate_logs') \
+                .select('*') \
+                .eq('user_id', user_id) \
+                .gte('date', start_date) \
+                .lte('date', end_date) \
+                .order('date', desc=True) \
+                .execute()
+            
+            stress = self.client.table('stress_logs') \
+                .select('*') \
+                .eq('user_id', user_id) \
+                .gte('date', start_date) \
+                .lte('date', end_date) \
+                .order('date', desc=True) \
+                .execute()
+            
+            return {
+                'sleep': sleep.data if sleep.data else [],
+                'heart_rate': hr.data if hr.data else [],
+                'stress': stress.data if stress.data else []
+            }
+        except Exception as e:
+            print(f"Error getting health metrics: {e}")
+            return {'sleep': [], 'heart_rate': [], 'stress': []}
+    
+    def get_recovery_score(self, user_id: int, date: str) -> dict | None:
+        """Get recovery score for a specific date."""
+        try:
+            response = self.client.from_('recovery_scores') \
+                .select('*') \
+                .eq('user_id', user_id) \
+                .eq('date', date) \
+                .execute()
+            
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(f"Error getting recovery score: {e}")
+            return None
+
 # Maak een globale instance aan die in de rest van de app kan worden geïmporteerd
 supabase_client = SupabaseClient()

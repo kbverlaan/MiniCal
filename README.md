@@ -58,8 +58,35 @@ python main.py
 ## Railway deployment
 Push naar GitHub en connect met Railway. Voeg de env variabelen toe.
 
-Voor de daily summaries, voeg een cronjob toe in Railway:
-- 22:00: `python scripts/daily_check.py`
-- 23:00: `python scripts/daily_summary.py`
+Voor de daily summaries en Garmin sync, voeg deze cronjobs toe in Railway:
+- **07:00 & 13:00**: `python scripts/sync_garmin_health.py` (auto-sync sleep, HR, stress)
+- **22:00**: `python scripts/daily_check.py` (reminder: "Staat alles erin?")
+- **23:00**: `python scripts/daily_summary.py` (daily recap)
+
+Cron syntax:
+```
+0 7,13 * * * python scripts/sync_garmin_health.py
+0 22 * * * python scripts/daily_check.py
+0 23 * * * python scripts/daily_summary.py
+```
+
+### Garmin Integration
+Voeg deze variabelen toe aan `.env`:
+```
+GARMIN_EMAIL='your_garmin_email@example.com'
+GARMIN_PASSWORD='your_garmin_password'
+```
+
+De sync draait 2x per dag en checkt voor nieuwe data:
+- 😴 Sleep (total, deep, light, REM, quality score)
+- ❤️ Heart Rate (resting, avg, max, HRV)
+- 😰 Stress levels (avg, max, breakdown)
+
+Data wordt automatisch opgeslagen in de database en is beschikbaar in Q&A!
+
+### Bot Commands
+- `/start` - Welkomstbericht en uitleg
+- `/help` - Overzicht van alle features
+- `/sync` - Handmatig Garmin data syncen
 
 ````

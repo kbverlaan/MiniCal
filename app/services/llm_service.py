@@ -426,7 +426,7 @@ Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
             print(f"Error parsing with LLM: {e}")
             return {"status": "complete", "meals": [], "workouts": []}
 
-    def answer_question_with_stats(self, question: str, daily_stats: dict, weekly_stats: dict, user_goals: dict = None, recent_workouts: list = None, conversation_history: list = None) -> str:
+    def answer_question_with_stats(self, question: str, daily_stats: dict, weekly_stats: dict, user_goals: dict = None, recent_workouts: list = None, health_metrics: dict = None, conversation_history: list = None) -> str:
         """
         Answer user questions using their daily and weekly statistics.
         
@@ -436,6 +436,7 @@ Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
             weekly_stats: Weekly averages from get_weekly_averages()
             user_goals: User's daily goals (calories, protein, carbs, fat)
             recent_workouts: List of workout dictionaries from last 7 days
+            health_metrics: Dict with sleep, heart_rate, stress data
             conversation_history: List of previous messages
         
         Returns:
@@ -470,7 +471,26 @@ Training • Herstel • Voeding • Slaap • Stressregulatie • Focus
 1. De vraag van de gebruiker
 2. Dagelijkse doelen en huidige intake (vandaag + weekgemiddelde)
 3. Workout historie van de afgelopen 7 dagen
-4. Eerdere conversatie (indien beschikbaar)
+4. Health metrics: Slaap, Hartslag, Stress (van Garmin)
+5. Eerdere conversatie (indien beschikbaar)
+
+*Health Metrics Interpretatie:*
+SLAAP:
+- 7-9u = optimaal voor herstel
+- Deep sleep = belangrijkst voor fysieke recovery
+- REM sleep = belangrijk voor mentale recovery
+- Sleep score <70 = slechte nacht, advies rest day
+
+HARTSLAG:
+- Resting HR: lager = beter hersteld (40-60 = atleet level)
+- Verhoogde resting HR = mogelijk overtraining/ziekte
+- HRV (Heart Rate Variability): hoger = beter hersteld
+
+STRESS:
+- <25 = laag (goed!)
+- 25-50 = gemiddeld
+- 50-75 = hoog (meer rust nodig)
+- >75 = zeer hoog (actie vereist)
 
 *Antwoordstijl:*
 - *BONDIG*: Max 4-5 alinea's (korte paragrafen)
@@ -479,6 +499,7 @@ Training • Herstel • Voeding • Slaap • Stressregulatie • Focus
 - Geef praktische stappen (protocol)
 - Vergelijk huidige prestaties met doelen
 - Gebruik emojis voor leesbaarheid
+- Correleer health metrics met performance (bijv. "Slechte slaap + zware training gisteren = rust vandaag")
 
 *TELEGRAM MARKDOWN (BELANGRIJK):*
 - Gebruik *tekst* voor bold (enkele sterren)
@@ -553,6 +574,54 @@ Blijf wetenschappelijk onderbouwd, praktisch en motiverend.{extra_instructions}"
             stats_context += "\n\n**WORKOUT HISTORIE (Afgelopen 7 dagen):**\n"
             for w in recent_workouts:
                 stats_context += f"- {w.get('date')}: {w.get('activity')} ({w.get('calories_burned')} kcal)\n"
+        
+        # Add health metrics (sleep, HR, stress)
+        if health_metrics:
+            sleep_logs = health_metrics.get('sleep', [])
+            hr_logs = health_metrics.get('heart_rate', [])
+            stress_logs = health_metrics.get('stress', [])
+            
+            if sleep_logs:
+                stats_context += "\n\n**SLAAP TRACKING (Recent):**\n"
+                for s in sleep_logs[:7]:  # Last 7 days
+                    total = s.get('total_hours', 0)
+                    deep = s.get('deep_hours', 0)
+                    light = s.get('light_hours', 0)
+                    rem = s.get('rem_hours', 0)
+                    score = s.get('quality_score')
+                    stats_context += f"- {s.get('date')}: {total:.1f}u totaal"
+                    if deep or light or rem:
+                        stats_context += f" (Deep: {deep:.1f}u, Light: {light:.1f}u, REM: {rem:.1f}u)"
+                    if score:
+                        stats_context += f" - Score: {score}/100"
+                    stats_context += "\n"
+            
+            if hr_logs:
+                stats_context += "\n**HARTSLAG (Recent):**\n"
+                for h in hr_logs[:7]:
+                    resting = h.get('resting_hr')
+                    avg = h.get('avg_hr')
+                    max_hr = h.get('max_hr')
+                    hrv = h.get('hrv_avg')
+                    stats_context += f"- {h.get('date')}: "
+                    if resting:
+                        stats_context += f"Resting {resting} bpm"
+                    if avg:
+                        stats_context += f", Avg {avg} bpm"
+                    if hrv:
+                        stats_context += f", HRV {hrv} ms"
+                    stats_context += "\n"
+            
+            if stress_logs:
+                stats_context += "\n**STRESS LEVELS (Recent):**\n"
+                for st in stress_logs[:7]:
+                    avg_stress = st.get('avg_stress')
+                    max_stress = st.get('max_stress')
+                    if avg_stress is not None:
+                        stats_context += f"- {st.get('date')}: Avg {avg_stress}/100"
+                        if max_stress:
+                            stats_context += f", Max {max_stress}/100"
+                        stats_context += "\n"
 
         messages = [{"role": "system", "content": system_prompt}]
         
