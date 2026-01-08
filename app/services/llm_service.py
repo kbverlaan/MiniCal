@@ -47,6 +47,9 @@ Voorbeelden QUESTION:
 - "Hoeveel heb ik gesport?"
 - "Zit ik op schema?"
 - "Wat zijn mijn gemiddeldes?"
+- "Heb je nog tips voor mij?"
+- "Wat kan ik verbeteren?"
+- "Geef advies op basis van mijn data"
 
 Voorbeelden LOG_DATA:
 - "2 eieren met toast"
@@ -64,6 +67,7 @@ Belangrijk:
 - Als conversation_history eindigt met een vraag van de assistent → waarschijnlijk CLARIFICATION_RESPONSE
 - Korte antwoorden na assistent vragen = CLARIFICATION_RESPONSE
 - Vraagwoorden (hoe, wat, hoeveel) + '?' = meestal QUESTION
+- Vragen om advies, tips of verbeterpunten = QUESTION
 - Voedsel/activiteit beschrijvingen = LOG_DATA
 
 Retourneer ALLEEN valide JSON:
@@ -131,7 +135,7 @@ Retourneer ALLEEN valide JSON:
             conversation_history: List of previous messages in format [{"role": "user/assistant", "content": "..."}]
         
         Returns: {
-            "status": "complete" | "needs_clarification" | "no_data",
+            "status": "complete" | "needs_clarification",
             "meals": [...],
             "workouts": [...],
             "clarification_question": "..." (optional),
@@ -149,13 +153,16 @@ Je taak:
 5. Houd context bij - als de gebruiker eerder een vraag heeft beantwoord, gebruik die info
 
 Beslissingslogica:
-- **COMPLETE**: Informatie is voldoende voor accurate schatting → bereken en geef korte samenvatting
+- **COMPLETE**: Informatie is verwerkt.
+  * Als er maaltijden/workouts zijn: bereken en geef korte samenvatting in 'summary'.
+  * Als er ECHT geen data te vinden is (bijv. "test" of random tekst): return empty meals/workouts arrays.
 - **NEEDS_CLARIFICATION**: Essentiële details ontbreken voor accurate schatting → stel slimme, specifieke vraag
   * Focus op: portiegroottes, bereidingswijze, type ingrediënten, intensiteit workout
   * Vraag alleen naar ESSENTIËLE info, geen perfectie
   * Je mag MEERDERE opvolgvragen stellen om tot een accurate schatting te komen
   * Voorbeeld: "Hoeveel rijst ongeveer? Een klein of groot bord?"
-- **NO_DATA**: Geen maaltijd of workout te herkennen → vraag wat de gebruiker wil loggen
+
+BELANGRIJK: Als het duidelijk een vraag is (niet data loggen), geef dan gewoon COMPLETE terug met lege arrays. De intent classifier haalt deze er normaal al uit.
 
 REALISTISCHE SCHATTINGSRICHTLIJNEN (Nederlandse porties):
 

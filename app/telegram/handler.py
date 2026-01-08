@@ -247,20 +247,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Handle different statuses
     status = parsed.get('status', 'complete')
     
-    if status == 'no_data':
-        # No meal or workout detected
-        response_text = (
-            "🤔 Ik kon geen maaltijd of workout herkennen in je bericht.\n\n"
-            "Wat wil je loggen? Bijvoorbeeld:\n"
-            "• \"2 eieren met toast\"\n"
-            "• \"30 minuten hardlopen\"\n"
-            "• \"pasta carbonara met een salade\""
-        )
-        conversation_context[telegram_id].append({"role": "assistant", "content": response_text})
-        await update.message.reply_text(response_text)
-        return
-    
-    elif status == 'needs_clarification':
+    if status == 'needs_clarification':
         # Need more info for accurate estimation
         clarification = parsed.get('clarification_question', 'Kun je wat meer details geven?')
         conversation_context[telegram_id].append({"role": "assistant", "content": clarification})
@@ -335,14 +322,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             # Clear conversation context after successful save
             conversation_context[telegram_id] = []
         else:
-            response_text = "❌ Er ging iets fout bij het opslaan. Probeer het opnieuw."
+            # No data to save - likely unclear input
+            response_text = (
+                "🤔 Ik kon geen maaltijd of workout herkennen.\n\n"
+                "Wat wil je loggen? Bijvoorbeeld:\n"
+                "• \"2 eieren met toast\"\n"
+                "• \"30 minuten hardlopen\"\n"
+                "• \"pasta carbonara\""
+            )
             conversation_context[telegram_id].append({"role": "assistant", "content": response_text})
             await update.message.reply_text(response_text)
-    else:
-        # Unknown status
-        response_text = "🤔 Ik begreep je bericht niet helemaal. Probeer het opnieuw of gebruik /start voor hulp."
-        conversation_context[telegram_id].append({"role": "assistant", "content": response_text})
-        await update.message.reply_text(response_text)
 
 def setup_telegram_bot(bot_token: str) -> Application:
     """Setup the Telegram bot with handlers."""
