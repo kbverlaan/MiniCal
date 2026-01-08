@@ -318,15 +318,30 @@ Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
             'messages': messages,
             'response_format': {'type': 'json_object'},
             'temperature': 0.2,  # Lagere temp voor consistentere output
-            'max_tokens': 2000
+            'max_tokens': 8192  # Increased for reasoning models
         }
 
         try:
-            response = requests.post(self.base_url, headers=self.headers, json=payload, timeout=30)
+            # Increased timeout for reasoning models
+            response = requests.post(self.base_url, headers=self.headers, json=payload, timeout=90)
             
             if response.status_code == 200:
                 result = response.json()
+                
+                # Check for API error in response
+                if 'error' in result:
+                    print(f"LLM API Error: {result['error']}")
+                    return {"status": "complete", "meals": [], "workouts": []}
+                
+                if 'choices' not in result or not result['choices']:
+                    print(f"LLM Unexpected Response (no choices): {result}")
+                    return {"status": "complete", "meals": [], "workouts": []}
+                
                 llm_response = result['choices'][0]['message']['content']
+                
+                if not llm_response:
+                    print(f"LLM Empty Response Content. Full result: {result}")
+                    return {"status": "complete", "meals": [], "workouts": []}
                 
                 # Debug: print raw response
                 print(f"LLM Raw Response: {llm_response[:200]}...")
@@ -465,11 +480,12 @@ Blijf vriendelijk, motiverend en feitelijk."""
             'model': BotConfig.MODEL_QUESTION_ANSWERING,
             'messages': messages,
             'temperature': 0.7,  # Iets hoger voor natuurlijkere antwoorden
-            'max_tokens': 500
+            'max_tokens': 4096  # Increased for reasoning models
         }
 
         try:
-            response = requests.post(self.base_url, headers=self.headers, json=payload, timeout=30)
+            # Increased timeout for reasoning models
+            response = requests.post(self.base_url, headers=self.headers, json=payload, timeout=60)
             
             if response.status_code == 200:
                 result = response.json()

@@ -7,8 +7,9 @@ WORKDIR /usr/src/app
 # Kopieer het dependency-bestand
 COPY requirements.txt ./
 
-# Installeer de dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Upgrade pip en installeer dependencies met een langere timeout
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --default-timeout=100 -r requirements.txt
 
 # Kopieer de applicatiecode
 COPY . .
