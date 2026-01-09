@@ -35,9 +35,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if user:
         welcome_msg = f"""👋 Welkom bij MiniCal!
 
-Ik help je om je calorieën, supplementen en workouts te tracken. Super simpel:
+It help je om je calorieën, supplementen en workouts te tracken. Super simpel:
 
-📝 **Hoe werkt het?**
+📝 *Hoe werkt het?*
 Stuur gewoon een bericht met wat je hebt gegeten, gedronken, of welke supplementen/workout je hebt gedaan.
 
 Bijvoorbeeld:
@@ -46,17 +46,17 @@ Bijvoorbeeld:
 "bulgogi rijst met sla, daarna 45 min krachttraining"
 "vitamine D3 1000mcg genomen"
 
-❓ **Vragen stellen:**
+❓ *Vragen stellen:*
 Stel gewoon je vraag en ik geef antwoord met je statistieken!
 "Hoe gaat het deze week?"
 "Haal ik genoeg protein?"
 "Hoeveel heb ik gesport?"
 
-⏰ **Dagelijkse checks:**
+⏰ *Dagelijkse checks:*
 • 22:00 - Ik vraag of alles erin staat
 • 23:00 - Je krijgt je dagoverzicht
 
-🎯 **Je huidige doelen:**
+🎯 *Je huidige doelen:*
 • Calorieën: {user['daily_calories']} kcal
 • Protein: {user['daily_protein']}g
 • Carbs: {user['daily_carbs']}g
@@ -112,9 +112,9 @@ async def today_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help command - show available commands."""
-    help_msg = """🤖 **MiniCal Commands**
+    help_msg = """🤖 *MiniCal Commands*
 
-📝 **Tracking**
+📝 *Tracking*
 Stuur gewoon een bericht met wat je hebt gegeten, gedronken, of gesport.
 
 Voorbeelden:
@@ -122,13 +122,13 @@ Voorbeelden:
 • "45 min krachttraining" → Workout  
 • "vitamine D3 genomen" → Supplement
 
-❓ **Vragen stellen**
+❓ *Vragen stellen*
 Gewoon je vraag stellen:
 • "Hoe gaat het deze week?"
 • "Haal ik genoeg protein?"
 • "Ben ik goed hersteld?"
 
-**Commands:**
+*Commands:*
 • `/start` - Welkomstbericht en setup
 • `/help` - Dit overzicht
 • `/today` - Statistieken van vandaag
@@ -185,7 +185,7 @@ async def setgoals_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
     
     # Simple version: just calories for MVP
-    msg = """🎯 **Stel je doelen in**
+    msg = """🎯 *Stel je doelen in*
 
 Stuur je dagelijkse caloriedoel in kcal.
 
@@ -324,13 +324,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             tz = pytz.timezone(BotConfig.TIMEZONE)
             today = datetime.now(tz).date().isoformat()
             
-            # Calculate week range (last 7 days including today)
+            # Calculate week range for trends (Last 7 COMPLETE days, excluding today)
             from datetime import timedelta
-            week_start = (datetime.now(tz).date() - timedelta(days=6)).isoformat()
+            yesterday_date = (datetime.now(tz).date() - timedelta(days=1)).isoformat()
+            week_start = (datetime.now(tz).date() - timedelta(days=7)).isoformat()
             
             # Get daily and weekly stats
             daily_stats = supabase_client.get_daily_totals(user['id'], today)
-            weekly_stats = supabase_client.get_weekly_averages(user['id'], week_start, today)
+            weekly_stats = supabase_client.get_weekly_averages(user['id'], week_start, yesterday_date)
             
             # Get recent workouts for detailed planning advice
             recent_workouts = supabase_client.get_workouts_for_range(user['id'], week_start, today)
@@ -448,14 +449,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         # Send confirmation with summary
         if meal_count > 0 or workout_count > 0:
-            msg = "✅ **Opgeslagen!**\n\n"
+            msg = "✅ *Opgeslagen!*\n\n"
             
             if meal_count > 0:
-                msg += f"🍽️ **Maaltijden ({meal_count}x)** - {total_meal_cal} kcal\n"
+                msg += f"🍽️ *Maaltijden ({meal_count}x)* - {total_meal_cal} kcal\n"
                 msg += "\n".join(meal_details) + "\n\n"
             
             if workout_count > 0:
-                msg += f"💪 **Workouts ({workout_count}x)** - {total_burned} kcal verbrand\n"
+                msg += f"💪 *Workouts ({workout_count}x)* - {total_burned} kcal verbrand\n"
                 msg += "\n".join(workout_details) + "\n\n"
             
             # Add LLM summary if provided

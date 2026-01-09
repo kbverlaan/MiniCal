@@ -57,10 +57,10 @@ class StatsFormatter:
         context = []
         
         # --- HEADER: TIJD & CONTEXT ---
-        context.append(f"🕒 **TIJDSTIP: {time_str} - {time_context}**")
+        context.append(f"🕒 *TIJDSTIP: {time_str} - {time_context}*")
 
         # --- SECTIE 1: VANDAAG vs DOELEN ---
-        context.append("📊 **VANDAAG (Status vs Doel)**")
+        context.append("📊 *VANDAAG (Status vs Doel)*")
         context.append(f"- Calorieën: {daily_stats['total_calories']} / {goals['cal']} kcal ({cal_pct}%)")
         context.append(f"  → Netto: {daily_stats['net_calories']} kcal (na {daily_stats['total_burned']} burned)")
         context.append(f"- Eiwit:     {daily_stats['total_protein']:.1f} / {goals['pro']}g ({pro_pct}%)")
@@ -68,7 +68,7 @@ class StatsFormatter:
         context.append(f"- Vet:       {daily_stats['total_fat']:.1f} / {goals['fat']}g ({pct(daily_stats['total_fat'], goals['fat'])}%)")
         
         # --- SECTIE 2: TRENDS (VANDAAG vs WEEK GEMIDDELDE) ---
-        context.append("\n📈 **TRENDS (Vandaag vs Weekgemiddelde)**")
+        context.append("\n📈 *TRENDS (Vandaag vs Weekgemiddelde)*")
         context.append(f"- Calorieën: {diff_symbol(cal_vs_avg)} kcal t.o.v. weekgemiddelde ({avg_cal:.0f})")
         context.append(f"- Eiwit:     {diff_symbol(pro_vs_avg)}g t.o.v. weekgemiddelde ({avg_pro:.1f})")
         context.append(f"- Activiteit: {weekly_stats.get('total_workouts', 0)} workouts deze week")
@@ -90,13 +90,16 @@ class StatsFormatter:
                 context.append(f"- Intensiteit: {intensity_total} minuten (Mod: {mod_min}, Vig: {vig_min})")
 
         # --- SECTIE 3: MICRONUTRIËNTEN & SUPPS ---
-        context.append("\n💊 **MICROS & SUPPLEMENTEN**")
+        context.append("\n💊 *MICROS & SUPPLEMENTEN*")
         
         micros = [
             ("Omega-3 (EPA/DHA)", daily_stats.get('omega3_epa_dha', 0), weekly_stats.get('avg_omega3_epa_dha', 0), 2000, "mg"),
             ("Vitamine D", daily_stats.get('vitamin_d', 0), weekly_stats.get('avg_vitamin_d', 0), 50, "mcg"),
+            ("Vitamine B12", daily_stats.get('vitamin_b12', 0), weekly_stats.get('avg_vitamin_b12', 0), 2.8, "mcg"),
             ("Vitamine C", daily_stats.get('vitamin_c', 0), weekly_stats.get('avg_vitamin_c', 0), 100, "mg"),
+            ("Calcium", daily_stats.get('calcium', 0), weekly_stats.get('avg_calcium', 0), 1000, "mg"),
             ("Magnesium", daily_stats.get('magnesium', 0), weekly_stats.get('avg_magnesium', 0), 350, "mg"),
+            ("Ijzer", daily_stats.get('iron', 0), weekly_stats.get('avg_iron', 0), 14, "mg"),
             ("Zink", daily_stats.get('zinc', 0), weekly_stats.get('avg_zinc', 0), 15, "mg"),
             ("Creatine", daily_stats.get('creatine', 0), weekly_stats.get('avg_creatine', 0), 5, "g")
         ]
@@ -113,19 +116,19 @@ class StatsFormatter:
             elif not is_early:
                 status = "⚠️ Laag"
 
-            # Format: "Vitamine D: 0 (Weekgem: 45) / 50 mcg"
-            context.append(f"- {name}: {current:.0f} (Week: {avg:.0f}) / {target}{unit} {status}")
+            # Format: "Vitamine D: 0 (Weekgm: 45) / 50 mcg"
+            context.append(f"- {name}: {current:.0f} (Weekgem: {avg:.0f}) / {target}{unit} {status}")
 
         # --- SECTIE 4: RECENTE WORKOUTS (CONTEXT VOOR HERSTEL) ---
         if recent_workouts:
-            context.append("\n🏋️ **WORKOUT CONTEXT (Laatste 7 dagen)**")
+            context.append("\n🏋️ *WORKOUT CONTEXT (Laatste 7 dagen)*")
             for w in recent_workouts[:5]:
                 context.append(f"- {w.get('date')}: {w.get('activity')} ({w.get('calories_burned')} kcal)")
         else:
-            context.append("\n🏋️ **WORKOUT CONTEXT**: Geen recente trainingen.")
+            context.append("\n🏋️ *WORKOUT CONTEXT*: Geen recente trainingen.")
 
         # --- SECTIE 5: HERSTEL METRICS (GARMIN) ---
-        context.append("\n🔋 **HERSTEL STATUS (Garmin Data)**")
+        context.append("\n🔋 *HERSTEL STATUS (Garmin Data)*")
         
         # Sleep analysis
         sleep_logs = health_metrics.get('sleep', [])

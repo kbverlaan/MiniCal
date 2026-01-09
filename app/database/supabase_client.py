@@ -278,11 +278,11 @@ class SupabaseClient:
             
             workouts = workouts_response.data if workouts_response.data else []
             
-            # Calculate days with data
-            from datetime import datetime, timedelta
-            start = datetime.fromisoformat(start_date)
-            end = datetime.fromisoformat(end_date)
-            days_in_range = (end - start).days + 1
+            # Calculate days with data (skip days with no measurements)
+            meal_dates = set(m['date'] for m in meals)
+            workout_dates = set(w['date'] for w in workouts)
+            active_dates = meal_dates.union(workout_dates)
+            days_in_range = len(active_dates)
             
             # Calculate totals - macros
             total_calories = sum(m['calories'] for m in meals)
