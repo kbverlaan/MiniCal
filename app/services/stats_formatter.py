@@ -1,4 +1,6 @@
 from datetime import datetime
+import pytz
+from app.config import BotConfig
 
 class StatsFormatter:
     @staticmethod
@@ -9,6 +11,23 @@ class StatsFormatter:
         Berekent percentages, verschillen en groepeert data logisch.
         """
         
+        # Huidige tijd ophalen voor context
+        tz = pytz.timezone(BotConfig.TIMEZONE)
+        now = datetime.now(tz)
+        current_hour = now.hour
+        time_str = now.strftime("%H:%M")
+        
+        # Bepaal dagdeel voor context
+        if current_hour < 12:
+            time_context = "Ochtend (Focus: Opstarten)"
+            is_early = True
+        elif current_hour < 18:
+            time_context = "Middag (Focus: Voortgang)"
+            is_early = False
+        else:
+            time_context = "Avond (Focus: Afronden)"
+            is_early = False
+
         # 1. DOELEN & ADHERENCE
         goals = {
             'cal': user_goals.get('daily_calories', 2000),
@@ -37,6 +56,9 @@ class StatsFormatter:
         
         context = []
         
+        # --- HEADER: TIJD & CONTEXT ---
+        context.append(f"🕒 **TIJDSTIP: {time_str} - {time_context}**")
+
         # --- SECTIE 1: VANDAAG vs DOELEN ---
         context.append("📊 **VANDAAG (Status vs Doel)**")
         context.append(f"- Calorieën: {daily_stats['total_calories']} / {goals['cal']} kcal ({cal_pct}%)")
@@ -67,25 +89,32 @@ class StatsFormatter:
             if intensity_total > 0:
                 context.append(f"- Intensiteit: {intensity_total} minuten (Mod: {mod_min}, Vig: {vig_min})")
 
-        # --- SECTIE 3: MICRONUTRIËNTEN & SUPPS (FOCUS OP TEKORTEN) ---
-        context.append("\n💊 **MICROS & SUPPLEMENTEN (Focus op herstel)**")
+        # --- SECTIE 3: MICRONUTRIËNTEN & SUPPS ---
+        context.append("\n💊 **MICROS & SUPPLEMENTEN**")
         
         micros = [
-            ("Omega-3 (EPA/DHA)", daily_stats.get('omega3_epa_dha', 0), 2000, "mg"),
-            ("Omega-3 (ALA)", daily_stats.get('omega3_ala', 0), 1600, "mg"),
-            ("Vitamine D", daily_stats.get('vitamin_d', 0), 50, "mcg"),
-            ("Vitamine C", daily_stats.get('vitamin_c', 0), 100, "mg"),
-            ("Vitamine B12", daily_stats.get('vitamin_b12', 0), 2.8, "mcg"),
-            ("Magnesium", daily_stats.get('magnesium', 0), 350, "mg"),
-            ("Calcium", daily_stats.get('calcium', 0), 1000, "mg"),
-            ("IJzer", daily_stats.get('iron', 0), 11, "mg"),
-            ("Zink", daily_stats.get('zinc', 0), 15, "mg"),
-            ("Creatine", daily_stats.get('creatine', 0), 5, "g")
+            ("Omega-3 (EPA/DHA)", daily_stats.get('omega3_epa_dha', 0), weekly_stats.get('avg_omega3_epa_dha', 0), 2000, "mg"),
+            ("Vitamine D", daily_stats.get('vitamin_d', 0), weekly_stats.get('avg_vitamin_d', 0), 50, "mcg"),
+            ("Vitamine C", daily_stats.get('vitamin_c', 0), weekly_stats.get('avg_vitamin_c', 0), 100, "mg"),
+            ("Magnesium", daily_stats.get('magnesium', 0), weekly_stats.get('avg_magnesium', 0), 350, "mg"),
+            ("Zink", daily_stats.get('zinc', 0), weekly_stats.get('avg_zinc', 0), 15, "mg"),
+            ("Creatine", daily_stats.get('creatine', 0), weekly_stats.get('avg_creatine', 0), 5, "g")
         ]
         
-        for name, current, target, unit in micros:
-            status = "✅" if current >= target * 0.8 else "⚠️ Laag"
-            context.append(f"- {name}: {current:.0f}{unit} (Doel: {target}{unit}) {status}")
+        for name, current, avg, target, unit in micros:
+            # Check status op basis van weekgemiddelde als dagwaarde laag is (in de ochtend)
+            # Maar toon beide waarden voor context
+            
+            status = ""
+            if current >= target * 0.8:
+                status = "✅"
+            elif avg >= target * 0.9: # Als weekgemiddelde goed is, is het ook prima
+                status = "✅ (Week OK)"
+            elif not is_early:
+                status = "⚠️ Laag"
+
+            # Format: "Vitamine D: 0 (Weekgem: 45) / 50 mcg"
+            context.append(f"- {name}: {current:.0f} (Week: {avg:.0f}) / {target}{unit} {status}")
 
         # --- SECTIE 4: RECENTE WORKOUTS (CONTEXT VOOR HERSTEL) ---
         if recent_workouts:

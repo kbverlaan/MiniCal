@@ -181,8 +181,14 @@ class GarminSyncService:
                 try:
                     hrv_data = garmin.get_hrv_data(date_str)
                     if hrv_data and 'hrvSummary' in hrv_data:
-                        hrv_avg = hrv_data['hrvSummary'].get('lastNightAvg')
-                except:
+                        summary = hrv_data['hrvSummary'] or {}
+                        hrv_avg = summary.get('lastNightAvg')
+                        
+                        if hrv_avg is None and verbose:
+                             print(f"   ⚠️ HRV data found but no lastNightAvg. Keys: {summary.keys()}")
+                except Exception as e:
+                    if verbose:
+                        print(f"   ⚠️ HRV sync warning: {e}")
                     pass
                 
                 if resting_hr or avg_hr or max_hr:

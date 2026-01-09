@@ -384,7 +384,8 @@ class SupabaseClient:
                 'notes': notes
             }
             
-            response = self.client.table('sleep').upsert(data).execute()
+            # Explicitly specify conflict columns for proper upsert behavior
+            response = self.client.table('sleep').upsert(data, on_conflict='user_id, date').execute()
             return response.data[0] if response.data else None
         except Exception as e:
             print(f"Error adding sleep log: {e}")
@@ -406,7 +407,7 @@ class SupabaseClient:
                 'source': source
             }
             
-            response = self.client.table('heart_rate').upsert(data).execute()
+            response = self.client.table('heart_rate').upsert(data, on_conflict='user_id, date').execute()
             return response.data[0] if response.data else None
         except Exception as e:
             print(f"Error adding heart rate log: {e}")
@@ -433,7 +434,7 @@ class SupabaseClient:
                 'notes': notes
             }
             
-            response = self.client.table('stress').upsert(data).execute()
+            response = self.client.table('stress').upsert(data, on_conflict='user_id, date').execute()
             return response.data[0] if response.data else None
         except Exception as e:
             print(f"Error adding stress log: {e}")
@@ -451,7 +452,7 @@ class SupabaseClient:
                 'charged': charged,
                 'drained': drained
             }
-            response = self.client.table('body_battery').upsert(data).execute()
+            response = self.client.table('body_battery').upsert(data, on_conflict='user_id, date').execute()
             return response.data[0] if response.data else None
         except Exception as e:
             print(f"Error adding body battery log: {e}")
@@ -463,6 +464,11 @@ class SupabaseClient:
                               vigorous_intensity_minutes: int = None, intensity_minutes_goal: int = None) -> dict | None:
         """Add or update daily activity log."""
         try:
+            # Ensure float values that should be ints are cast to int
+            if floors_climbed is not None: floors_climbed = int(floors_climbed)
+            if steps is not None: steps = int(steps)
+            if step_goal is not None: step_goal = int(step_goal)
+            
             data = {
                 'user_id': user_id,
                 'date': date,
@@ -474,7 +480,7 @@ class SupabaseClient:
                 'vigorous_intensity_minutes': vigorous_intensity_minutes,
                 'intensity_minutes_goal': intensity_minutes_goal
             }
-            response = self.client.table('daily_activity').upsert(data).execute()
+            response = self.client.table('daily_activity').upsert(data, on_conflict='user_id, date').execute()
             return response.data[0] if response.data else None
         except Exception as e:
             print(f"Error adding daily activity log: {e}")

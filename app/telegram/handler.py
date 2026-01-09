@@ -85,12 +85,17 @@ async def today_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     today = datetime.now(tz).date().isoformat()
     
     # Calculate week range for trends
+    # Use yesterday as end date for averages to avoid skewing with incomplete current day
     from datetime import timedelta
-    week_start = (datetime.now(tz).date() - timedelta(days=6)).isoformat()
+    yesterday_date = (datetime.now(tz).date() - timedelta(days=1)).isoformat()
+    week_start = (datetime.now(tz).date() - timedelta(days=7)).isoformat()
     
     # Get all context data
     daily_stats = supabase_client.get_daily_totals(user['id'], today)
-    weekly_stats = supabase_client.get_weekly_averages(user['id'], week_start, today)
+    # Weekly stats up to yesterday (true 7 day average of completed days)
+    weekly_stats = supabase_client.get_weekly_averages(user['id'], week_start, yesterday_date)
+    
+    # Recent workouts and health metrics still relevant including today
     recent_workouts = supabase_client.get_workouts_for_range(user['id'], week_start, today)
     health_metrics = supabase_client.get_health_metrics(user['id'], week_start, today)
     
