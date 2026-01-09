@@ -8,6 +8,8 @@ from app.database.supabase_client import supabase_client
 from app.services.llm_service import llm_service
 from app.config import BotConfig
 
+from app.services.stats_formatter import StatsFormatter
+
 # Store conversation context per user
 # Format: {user_id: {"messages": [...], "waiting_for_clarification": bool}}
 conversation_context = {}
@@ -82,56 +84,24 @@ async def today_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     tz = pytz.timezone(BotConfig.TIMEZONE)
     today = datetime.now(tz).date().isoformat()
     
-    # Get totals
-    totals = supabase_client.get_daily_totals(user['id'], today)
+    # Calculate week range for trends
+    from datetime import timedelta
+    week_start = (datetime.now(tz).date() - timedelta(days=6)).isoformat()
     
-    # Format message
-    msg = f"""📊 **Vandaag** ({datetime.now(tz).strftime('%d-%m-%Y')})
-
-🍽️ **GEGETEN**
-{totals['total_calories']} kcal
-Protein: {totals['total_protein']:.1f}g
-Carbs: {totals['total_carbs']:.1f}g
-Vet: {totals['total_fat']:.1f}g
-
-🔥 **VERBRAND**
-{totals['total_burned']} kcal
-
-📈 **NETTO**
-{totals['net_calories']} kcal
-
-🎯 **DOEL**
-{user['daily_calories']} kcal
-Verschil: {totals['net_calories'] - user['daily_calories']:+d} kcal
-
-{'✅ Onder doel!' if totals['net_calories'] < user['daily_calories'] else '⚠️ Boven doel'}
-
-📝 {totals['meal_count']} maaltijd(en) • 💪 {totals['workout_count']} workout(s)"""
+    # Get all context data
+    daily_stats = supabase_client.get_daily_totals(user['id'], today)
+    weekly_stats = supabase_client.get_weekly_averages(user['id'], week_start, today)
+    recent_workouts = supabase_client.get_workouts_for_range(user['id'], week_start, today)
+    health_metrics = supabase_client.get_health_metrics(user['id'], week_start, today)
     
-    # Add vitamins/minerals if significant amounts
-    vitamins = []
-    if totals.get('vitamin_d', 0) > 0:
-        vitamins.append(f"Vit D: {totals['vitamin_d']:.1f}mcg")
-    if totals.get('vitamin_c', 0) > 0:
-        vitamins.append(f"Vit C: {totals['vitamin_c']:.0f}mg")
-    if totals.get('vitamin_b12', 0) > 0:
-        vitamins.append(f"B12: {totals['vitamin_b12']:.1f}mcg")
-    if totals.get('omega3', 0) > 0:
-        vitamins.append(f"Omega-3: {totals['omega3']:.0f}mg")
-    if totals.get('magnesium', 0) > 0:
-        vitamins.append(f"Mg: {totals['magnesium']:.0f}mg")
-    if totals.get('calcium', 0) > 0:
-        vitamins.append(f"Ca: {totals['calcium']:.0f}mg")
-    if totals.get('iron', 0) > 0:
-        vitamins.append(f"IJzer: {totals['iron']:.1f}mg")
-    if totals.get('zinc', 0) > 0:
-        vitamins.append(f"Zink: {totals['zinc']:.1f}mg")
-    if totals.get('creatine', 0) > 0:
-        vitamins.append(f"Creatine: {totals['creatine']:.1f}g")
-    
-    if vitamins:
-        msg += "\n\n💊 **VITAMINES/MINERALEN**\n"
-        msg += " • ".join(vitamins)
+    # Use StatsFormatter for consistent, rich output
+    msg = StatsFormatter.format(
+        daily_stats=daily_stats,
+        weekly_stats=weekly_stats,
+        user_goals=user,
+        recent_workouts=recent_workouts,
+        health_metrics=health_metrics
+    )
     
     await update.message.reply_text(msg, parse_mode='Markdown')
 

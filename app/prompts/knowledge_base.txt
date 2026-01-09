@@ -1,0 +1,149 @@
+REALISTISCHE SCHATTINGSRICHTLIJNEN (Nederlandse porties):
+
+**BASIS INGREDIËNTEN:**
+- Rijst (gekookt): Klein bord (150g) = 195 kcal, Normaal bord (200g) = 260 kcal, Groot bord (300g) = 390 kcal
+- Pasta (gekookt): Klein bord (150g) = 235 kcal, Normaal bord (200g) = 310 kcal, Groot bord (300g) = 470 kcal
+- Aardappelen: 1 middelgrote (150g) = 115 kcal, 3 middelgrote = 345 kcal
+- Brood: 1 snee witbrood = 70 kcal, 1 snee volkorenbrood = 85 kcal
+
+**EIWITTEN:**
+- Kipfilet: Klein (100g) = 165 kcal (31g protein), Normaal (150g) = 248 kcal (47g protein), Groot (200g) = 330 kcal (62g protein)
+- Gehakt: 100g = 250 kcal (20g protein, 18g vet)
+- Ei: 1 ei = 75 kcal (6g protein, 5g vet)
+- Zalm: 100g = 200 kcal (20g protein, 13g vet)
+- Tonijn (blik in water): 100g = 130 kcal (30g protein)
+
+**GROENTEN:**
+- Sla/bladgroente: verwaarloosbaar (~10-20 kcal per portie)
+- Tomaat: 1 middelgrote = 20 kcal
+- Komkommer: halve = 25 kcal
+- Broccoli: 100g = 35 kcal
+
+**SAUZEN & TOEVOEGINGEN:**
+- Mayonaise: 1 eetlepel = 100 kcal (11g vet)
+- Ketchup: 1 eetlepel = 20 kcal
+- Pesto: 1 eetlepel = 80 kcal (8g vet)
+- Olijfolie: 1 eetlepel = 120 kcal (14g vet)
+- Sojasaus: verwaarloosbaar (10 kcal per eetlepel)
+- Sambal: verwaarloosbaar (5-10 kcal)
+
+**DRANKEN:**
+- Cola/frisdrank: Blikje (330ml) = 140 kcal, Fles (500ml) = 210 kcal
+- Bier: Standaard (330ml) = 140 kcal
+- Wijn: Glas (150ml) = 120 kcal
+- Melk (vol): Glas (200ml) = 130 kcal
+
+**SNACKS:**
+- Banaan: 1 middelgrote = 105 kcal (27g carbs)
+- Appel: 1 middelgrote = 95 kcal (25g carbs)
+- Noten: Handje (30g) = 180 kcal (15g vet, 5g protein)
+
+**VITAMINES & MINERALEN IN VOEDSEL:**
+
+Algemeen principe: 
+- Schat vitamines/mineralen ALLEEN als het voedsel een SIGNIFICANTE bron is (>10% dagelijkse behoefte)
+- Voor supplementen: parse altijd de exacte dosering
+- Zet 0 of laat leeg voor vitamines die niet significant aanwezig zijn
+
+Vitamine D (mcg):
+- Zalm 100g: 10-20 mcg
+- Ei: 1-2 mcg per ei
+- Supplement: parse exacte dosering (meestal 10-75 mcg)
+
+Vitamine C (mg):
+- Sinaasappel: 50 mg
+- Paprika (rood, 100g): 130 mg
+- Broccoli (100g): 90 mg
+- Supplement: parse exacte dosering
+
+Vitamine B12 (mcg):
+- Vlees/vis (100g): 2-5 mcg
+- Ei: 0.5 mcg
+- Zuivel (glas melk): 1 mcg
+- Supplement: parse exacte dosering
+
+Omega-3 ALA (plant-based, mg):
+- Lijnzaad (eetlepel): 2400 mg
+- Walnoten (30g): 2500 mg
+- Chiazaad (eetlepel): 2100 mg
+- Lijnzaadolie (eetlepel): 7200 mg
+- Supplement: parse exacte dosering
+
+Omega-3 EPA+DHA (marine-based, mg):
+- Zalm (100g): 1500-2500 mg
+- Makreel (100g): 2000-3000 mg
+- Sardines (100g): 1500-2000 mg
+- Haring (100g): 1700-2300 mg
+- Tonijn (100g): 200-300 mg (laag!)
+- Visolie supplement: parse exacte dosering (meestal 250-1000 mg EPA+DHA)
+- Algenolie supplement: parse exacte dosering
+
+⚠️ BELANGRIJK: ALA en EPA/DHA zijn APARTE velden!
+- ALA wordt inefficiënt geconverteerd (~5-10%)
+- EPA/DHA is de doelvorm voor hart/hersenen
+- Log ze ALTIJD apart
+
+Magnesium (mg):
+- Spinazie (100g): 80 mg
+- Noten (30g): 80 mg
+- Volkoren brood (snee): 40 mg
+- Supplement: parse exacte dosering (meestal 200-400 mg)
+
+Calcium (mg):
+- Melk/yoghurt (200ml): 240 mg
+- Kaas (30g): 200 mg
+- Broccoli (100g): 40 mg
+- Supplement: parse exacte dosering
+
+IJzer (mg):
+- Rood vlees (100g): 2-3 mg
+- Spinazie (100g): 2.7 mg
+- Supplement: parse exacte dosering
+
+Zink (mg):
+- Rood vlees (100g): 4-5 mg
+- Noten (30g): 1 mg
+- Supplement: parse exacte dosering
+
+Creatine (g):
+- Rood vlees (100g): 0.3-0.4 g (meestal te weinig om significant te zijn)
+- Supplement: parse exacte dosering (meestal 3-5 g)
+
+Vezels (g):
+- Volkoren brood (snee): 2-3g
+- Havermout (50g): 5g
+- Broccoli (100g): 2.5g
+- Appel: 4g
+- Lijnzaad (eetlepel): 3g
+
+Suiker (g):
+- Let op toegevoegde suikers in verwerkte producten
+- Fruit bevat natuurlijke suikers (banaan: 14g, appel: 19g)
+- Cola (330ml): 35g
+- Yoghurt met fruit: 15-20g
+
+Verzadigd Vet (g):
+- Kaas (30g): 5-7g
+- Boter (10g): 5g
+- Volle melk (200ml): 4.5g
+- Gehakt (100g): 7-8g
+- Kokosolie (eetlepel): 12g
+
+**WORKOUTS (per uur, gemiddeld 85kg persoon):**
+- Wandelen rustig: 220-280 kcal/uur
+- Hardlopen (10 km/u): 680-790 kcal/uur
+- Fietsen normaal: 450-560 kcal/uur
+- Krachttraining matig: 340-450 kcal/uur
+- Krachttraining intensief: 510-620 kcal/uur
+- Zwemmen: 450-680 kcal/uur
+- HIIT training: 560-790 kcal/uur
+
+**BELANGRIJKE AANNAMES:**
+- "Met saus" zonder specificatie → schat ROYAAL (1.5-2 eetlepels = 80-120 kcal gemiddeld)
+- "Normaal bord/portie" = standaard Nederlandse portie, maar kies de BOVENKANT van de range
+- Bij twijfel: kies de GROTERE optie (beter te hoog dan te laag schatten)
+- Restaurant porties zijn vaak 1.5-2x groter dan thuis → bereken met 1.75x factor
+- Snackrepen/chocolade: ~200-250 kcal per standaard reep
+- Frituur/gefrituurde items: bereken extra 30% calorieën door frituurvet
+- "Met kaas": schat minimaal 30g kaas = 120 kcal extra
+- Bij onzekerheid: liever 10-15% te hoog schatten dan te laag

@@ -438,9 +438,50 @@ class SupabaseClient:
         except Exception as e:
             print(f"Error adding stress log: {e}")
             return None
-    
+
+    def add_body_battery_log(self, user_id: int, date: str, highest: int = None,
+                            lowest: int = None, charged: int = None, drained: int = None) -> dict | None:
+        """Add or update body battery log."""
+        try:
+            data = {
+                'user_id': user_id,
+                'date': date,
+                'highest': highest,
+                'lowest': lowest,
+                'charged': charged,
+                'drained': drained
+            }
+            response = self.client.table('body_battery').upsert(data).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(f"Error adding body battery log: {e}")
+            return None
+
+    def add_daily_activity_log(self, user_id: int, date: str, steps: int = None,
+                              step_goal: int = None, floors_climbed: int = None,
+                              distance_meters: float = None, moderate_intensity_minutes: int = None,
+                              vigorous_intensity_minutes: int = None, intensity_minutes_goal: int = None) -> dict | None:
+        """Add or update daily activity log."""
+        try:
+            data = {
+                'user_id': user_id,
+                'date': date,
+                'steps': steps,
+                'step_goal': step_goal,
+                'floors_climbed': floors_climbed,
+                'distance_meters': distance_meters,
+                'moderate_intensity_minutes': moderate_intensity_minutes,
+                'vigorous_intensity_minutes': vigorous_intensity_minutes,
+                'intensity_minutes_goal': intensity_minutes_goal
+            }
+            response = self.client.table('daily_activity').upsert(data).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(f"Error adding daily activity log: {e}")
+            return None
+
     def get_health_metrics(self, user_id: int, start_date: str, end_date: str) -> dict:
-        """Get sleep, HR, and stress data for date range."""
+        """Get all health data for date range."""
         try:
             sleep = self.client.table('sleep') \
                 .select('*') \
@@ -465,15 +506,33 @@ class SupabaseClient:
                 .lte('date', end_date) \
                 .order('date', desc=True) \
                 .execute()
+
+            body_battery = self.client.table('body_battery') \
+                .select('*') \
+                .eq('user_id', user_id) \
+                .gte('date', start_date) \
+                .lte('date', end_date) \
+                .order('date', desc=True) \
+                .execute()
+
+            activity = self.client.table('daily_activity') \
+                .select('*') \
+                .eq('user_id', user_id) \
+                .gte('date', start_date) \
+                .lte('date', end_date) \
+                .order('date', desc=True) \
+                .execute()
             
             return {
                 'sleep': sleep.data if sleep.data else [],
                 'heart_rate': hr.data if hr.data else [],
-                'stress': stress.data if stress.data else []
+                'stress': stress.data if stress.data else [],
+                'body_battery': body_battery.data if body_battery.data else [],
+                'daily_activity': activity.data if activity.data else []
             }
         except Exception as e:
             print(f"Error getting health metrics: {e}")
-            return {'sleep': [], 'heart_rate': [], 'stress': []}
+            return {'sleep': [], 'heart_rate': [], 'stress': [], 'body_battery': [], 'daily_activity': []}
     
     def get_recovery_score(self, user_id: int, date: str) -> dict | None:
         """Get recovery score for a specific date."""
