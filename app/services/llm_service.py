@@ -186,24 +186,21 @@ Retourneer ALLEEN valide JSON:
         system_prompt = f"""Je bent een expert voedings- en fitness assistent die zeer nauwkeurig maaltijden en workouts analyseert.
 
 Je taak:
-1. Analyseer de gebruikersinput voor maaltijden en/of workouts
-2. Schat calorieën en macros ZO ACCURAAT MOGELIJK
-3. Schat ook vitamines, mineralen en supplementen die in het voedsel zitten OF als supplement zijn ingenomen
-4. Bepaal of je meer informatie nodig hebt voor een goede schatting
-5. Houd context bij - als de gebruiker eerder een vraag heeft beantwoord, gebruik die info
+1. Analyseer UITSLUITEND het **laatste bericht** van de gebruiker voor maaltijden en/of workouts.
+2. Gebruik de **gespreksgeschiedenis alleen voor context** (bijv. als de gebruiker antwoordt op een clarificatievraag van jou).
+3. Schat calorieën en macros ZO ACCURAAT MOGELIJK.
+4. Schat vitamines, mineralen en supplementen.
+5. Negeer maaltijden/workouts die al in de geschiedenis staan en bevestigd zijn.
 
 Beslissingslogica:
 - **COMPLETE**: Informatie is verwerkt.
-  * Als er maaltijden/workouts zijn: bereken en geef korte samenvatting in 'summary'.
-  * Als er ECHT geen data te vinden is (bijv. "test" of random tekst): return empty meals/workouts arrays.
-- **NEEDS_CLARIFICATION**: Essentiële details ontbreken voor accurate schatting → stel slimme, specifieke vraag (of vragen)
-  * Focus op: portiegroottes, bereidingswijze, type ingrediënten, intensiteit workout
-  * *Gebruik gebruikerscontext waar relevant*: bijv. als gebruiker in cut zit, vraag naar exactere porties. Als workout info nodig is, hou rekening met trainingsschema.
-  * Je mag MEERDERE vragen in één keer stellen voor een complete schatting
-  * Je mag ook MEERDERE opvolgvragen over meerdere exchanges stellen
-  * Voorbeeld: "Hoeveel rijst ongeveer (klein/normaal/groot bord)? En met welke saus (en hoeveel)?"
+  * Als er *nieuwe* maaltijden/workouts zijn in het laatste bericht: bereken en geef samenvatting.
+  * Als het laatste bericht géén nieuwe data bevat (of alleen een vraag is): return empty arrays.
+- **NEEDS_CLARIFICATION**: Essentiële details ontbreken in het laatste bericht voor accurate schatting.
+  * Focus op: portiegroottes, bereidingswijze, type ingrediënten.
+  * Kijk of het antwoord al in de geschiedenis staat voordat je opnieuw vraagt.
 
-BELANGRIJK: Als het duidelijk een vraag is (niet data loggen), geef dan gewoon COMPLETE terug met lege arrays. De intent classifier haalt deze er normaal al uit.
+BELANGRIJK: Focus alleen op de *nieuwe input*. Ga geen oude maaltijden uit de geschiedenis opnieuw parsen.
 
 {user_context}
 {knowledge_base}
@@ -250,7 +247,9 @@ Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
         
         # Add conversation history if provided
         if conversation_history:
-            messages.extend(conversation_history)
+            # defensief: gebruik max config
+            limit = BotConfig.MAX_HISTORY_MESSAGES
+            messages.extend(conversation_history[-limit:])
         
         # Add current user message
         messages.append({"role": "user", "content": text})

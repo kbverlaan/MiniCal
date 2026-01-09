@@ -240,7 +240,39 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Show typing indicator
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action='typing')
     
-    # Get conversation history for this user
+    # DB: Save user message
+    supabase_client.add_conversation_message(user['id'], 'user', text)
+    
+    # DB: Get conversation history (persisted)
+    # We fetch slightly more to have context, e.g. last 10
+    db_history = supabase_client.get_recent_conversation(user['id'], limit=10)
+    
+    # Transform for LLM (although get_recent_conversation already returns list of dicts)
+    # But LLM expects {"role": "...", "content": "..."}
+    # Our DB returns role, content, created_at.
+    # LLM service might need to handle the extra fields or we strip them here.
+    # Also, we might want to inject timestamp into content for the LLM to understand time.
+    
+    formatted_history = []
+    for msg in db_history:
+        # Format: "[YYYY-MM-DD HH:MM] Content"
+        # Parse timestamp if needed, but it comes as string iso format usually
+        ts = msg.get('created_at', '')
+        # Simple truncation for cleaner display
+        if 'T' in ts:
+            ts_str = ts.split('T')[0] + " " + ts.split('T')[1][:5]
+        else:
+            ts_str = ts[:16]
+            
+        role = msg['role']
+        content = msg['content']
+        
+        # Inject timestamp context for the LLM
+        # But for 'role', LLM strictly expects 'user' or 'assistant'
+        formatted_content = f"[{ts_str}] {content}"
+        formatted_history.append({"role": role, "content": formatted_content})
+
+    # Update in-memory context (mostly for tracking waiting_for_clarification state)
     if telegram_id not in conversation_context:
         conversation_context[telegram_id] = {
             "messages": [],
@@ -264,8 +296,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Show typing indicator while waiting for LLM
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action='typing')
         
-        # Continue to parse_food_and_workouts with the clarification
-        parsed = llm_service.parse_food_and_workouts(text, conversation_context[telegram_id]["messages"][:-1])
+        # Continue to parse_food_and_workouts with the clarification using DB history
+        parsed = llm_service.parse_food_and_workouts(text, formatted_history[:-1])
         
         # Get today's date
         tz = pytz.timezone(BotConfig.TIMEZONE)
@@ -276,7 +308,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Jump directly to status handling (skip intent classification)
     else:
         # Normal flow: classify intent first
-        intent_result = llm_service.classify_intent(text, conversation_context[telegram_id]["messages"][:-1])
+        intent_result = llm_service.classify_intent(text, formatted_history[:-1])
         intent = intent_result.get('intent', 'log_data').lower()  # Normalize to lowercase
         
         print(f"Intent classified as: {intent.upper()} (confidence: {intent_result.get('confidence', 0)})")
@@ -313,11 +345,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     user_goals=user,
                     recent_workouts=recent_workouts,
                     health_metrics=health_metrics,
-                    conversation_history=conversation_context[telegram_id]["messages"][:-1]
+                    conversation_history=formatted_history[:-1]
                 )
             finally:
                 # Stop the 'typing...' action
                 typing_task.cancel()
+            
+            # DB: Save assistant response
+            supabase_client.add_conversation_message(user['id'], 'assistant', answer)
             
             conversation_context[telegram_id]["messages"].append({"role": "assistant", "content": answer})
             
@@ -335,7 +370,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Otherwise (log_data): parse for food/workouts
         # Show typing indicator while waiting for LLM
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action='typing')
-        parsed = llm_service.parse_food_and_workouts(text, conversation_context[telegram_id]["messages"][:-1])
+        parsed = llm_service.parse_food_and_workouts(text, formatted_history[:-1])
         
         # Get today's date
         tz = pytz.timezone(BotConfig.TIMEZONE)
@@ -347,6 +382,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if status == 'needs_clarification':
         # Need more info for accurate estimation
         clarification = parsed.get('clarification_question', 'Kun je wat meer details geven?')
+        
+        # DB: Save assistant response (clarification question)
+        supabase_client.add_conversation_message(user['id'], 'assistant', clarification)
+
         conversation_context[telegram_id]["messages"].append({"role": "assistant", "content": clarification})
         conversation_context[telegram_id]["waiting_for_clarification"] = True
         await update.message.reply_text(f"❓ {clarification}")
@@ -418,6 +457,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             if 'summary' in parsed and parsed['summary']:
                 msg += f"📝 {parsed['summary']}"
             
+            # DB: Save assistant response (summary)
+            supabase_client.add_conversation_message(user['id'], 'assistant', msg)
+            
             conversation_context[telegram_id]["messages"].append({"role": "assistant", "content": msg})
             await update.message.reply_text(msg, parse_mode='Markdown')
             
@@ -435,6 +477,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 "• \"30 minuten hardlopen\"\n"
                 "• \"pasta carbonara\""
             )
+            # DB: Save assistant response (error)
+            supabase_client.add_conversation_message(user['id'], 'assistant', response_text)
+
             conversation_context[telegram_id]["messages"].append({"role": "assistant", "content": response_text})
             await update.message.reply_text(response_text)
 

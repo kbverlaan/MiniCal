@@ -533,20 +533,40 @@ class SupabaseClient:
         except Exception as e:
             print(f"Error getting health metrics: {e}")
             return {'sleep': [], 'heart_rate': [], 'stress': [], 'body_battery': [], 'daily_activity': []}
-    
-    def get_recovery_score(self, user_id: int, date: str) -> dict | None:
-        """Get recovery score for a specific date."""
+
+    # === CONVERSATION HISTORY ===
+
+    def add_conversation_message(self, user_id: int, role: str, content: str) -> dict | None:
+        """Add a message to the conversation history."""
         try:
-            response = self.client.from_('recovery_scores') \
-                .select('*') \
-                .eq('user_id', user_id) \
-                .eq('date', date) \
-                .execute()
-            
+            data = {
+                'user_id': user_id,
+                'role': role,
+                'content': content
+            }
+            # created_at is automatic
+            response = self.client.table('conversation_history').insert(data).execute()
             return response.data[0] if response.data else None
         except Exception as e:
-            print(f"Error getting recovery score: {e}")
+            print(f"Error adding conversation message: {e}")
             return None
+
+    def get_recent_conversation(self, user_id: int, limit: int = 10) -> list[dict]:
+        """Get recent conversation history for a user, formatted for LLM."""
+        try:
+            response = self.client.table('conversation_history') \
+                .select('role, content, created_at') \
+                .eq('user_id', user_id) \
+                .order('created_at', desc=True) \
+                .limit(limit) \
+                .execute()
+            
+            # Return reversed list (oldest first) which is expected by LLM
+            messages = response.data if response.data else []
+            return messages[::-1]
+        except Exception as e:
+            print(f"Error fetching conversation history: {e}")
+            return []
 
 # Maak een globale instance aan die in de rest van de app kan worden geïmporteerd
 supabase_client = SupabaseClient()
