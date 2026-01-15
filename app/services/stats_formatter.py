@@ -116,7 +116,10 @@ class StatsFormatter:
             for date in sorted(meals_by_date.keys(), reverse=True)[:3]:
                 context.append(f"\n*{date}:*")
                 for meal in meals_by_date[date][:5]:  # Max 5 meals per day
-                    context.append(f"  • {meal['description']} ({meal['calories']} kcal, {meal['protein']:.0f}g eiwit)")
+                    p = meal['protein']
+                    c = meal['carbs']
+                    f = meal['fat']
+                    context.append(f"  • {meal['description']} ({meal['calories']} kcal | P:{p:.0f}g C:{c:.0f}g F:{f:.0f}g)")
 
         # --- SECTIE 4: RECENTE WORKOUTS (CONTEXT VOOR HERSTEL) ---
         if recent_workouts:
@@ -258,10 +261,10 @@ class StatsFormatter:
         
         lines.append("\n━━━━━━━━━━━━━━━━━━")
         lines.append("📊 MACRO STATUS")
-        lines.append(f"Cal   {cal_curr} / {goals['cal']} kcal  {status_icon(cal_curr, goals['cal'])}")
-        lines.append(f"Prot  {pro_curr:.0f} / {goals['pro']} g      {status_icon(pro_curr, goals['pro'])}")
-        lines.append(f"Carb  {carb_curr:.0f} / {goals['carbs']} g      {status_icon(carb_curr, goals['carbs'])}")
-        lines.append(f"Fat    {fat_curr:.0f} / {goals['fat']} g       {status_icon(fat_curr, goals['fat'])}")
+        lines.append(f"Cal   {cal_curr:>4} / {goals['cal']:<4} kcal  {status_icon(cal_curr, goals['cal'])}")
+        lines.append(f"Prot  {pro_curr:>4.0f} / {goals['pro']:<4} g     {status_icon(pro_curr, goals['pro'])}")
+        lines.append(f"Carb  {carb_curr:>4.0f} / {goals['carbs']:<4} g     {status_icon(carb_curr, goals['carbs'])}")
+        lines.append(f"Fat   {fat_curr:>4.0f} / {goals['fat']:<4} g     {status_icon(fat_curr, goals['fat'])}")
         
         lines.append(f"\n🔥 Netto kcal: {daily_stats['net_calories']}")
         lines.append(f"(verbrand: {daily_stats['total_burned']})")
@@ -274,9 +277,9 @@ class StatsFormatter:
         
         lines.append("\n━━━━━━━━━━━━━━━━━━")
         lines.append("📈 CONTEXT (7d)")
-        lines.append(f"Cal:   {cal_vs_avg:+.0f} vs gem")
-        lines.append(f"Prot:  {pro_vs_avg:+.0f} g vs gem")
-        lines.append(f"Workouts: {weekly_stats.get('total_workouts', 0)}×")
+        lines.append(f"Cal:      {cal_vs_avg:>+5.0f} vs gem")
+        lines.append(f"Prot:     {pro_vs_avg:>+5.0f} g vs gem")
+        lines.append(f"Workouts: {weekly_stats.get('total_workouts', 0):>2}×")
         
         # Micros met dual-symbool systeem
         lines.append("\n━━━━━━━━━━━━━━━━━━")
@@ -317,9 +320,9 @@ class StatsFormatter:
                     week_symbol = "⬇️"
             
             if week_symbol:
-                lines.append(f"{name:<10} {curr:>4.0f} / {target:<4}  {today_symbol} {week_symbol}")
+                lines.append(f"{name:<10} {curr:>4.0f} / {target:<5}  {today_symbol}  {week_symbol}")
             else:
-                lines.append(f"{name:<10} {curr:>4.0f} / {target:<4}  {today_symbol}")
+                lines.append(f"{name:<10} {curr:>4.0f} / {target:<5}  {today_symbol}")
         
         # Activiteit (laatste 7 dagen, max 3 workouts)
         if recent_workouts:
