@@ -5,7 +5,7 @@ from app.config import BotConfig
 class StatsFormatter:
     @staticmethod
     def format(daily_stats: dict, weekly_stats: dict, user_goals: dict, 
-              recent_workouts: list, health_metrics: dict) -> str:
+              recent_workouts: list, health_metrics: dict, recent_meals: list = None) -> str:
         """
         Gegenereert een rijke, geanalyseerde context string voor de LLM.
         Berekent percentages, verschillen en groepeert data logisch.
@@ -72,22 +72,6 @@ class StatsFormatter:
         context.append(f"- Calorieën: {diff_symbol(cal_vs_avg)} kcal t.o.v. weekgemiddelde ({avg_cal:.0f})")
         context.append(f"- Eiwit:     {diff_symbol(pro_vs_avg)}g t.o.v. weekgemiddelde ({avg_pro:.1f})")
         context.append(f"- Activiteit: {weekly_stats.get('total_workouts', 0)} workouts deze week")
-        
-        # --- SECTIE 2.5: DAGELIJKSE ACTIVITEIT (Uitbreiding) ---
-        activity_logs = health_metrics.get('daily_activity', [])
-        if activity_logs:
-            last_activity = activity_logs[0]
-            steps = last_activity.get('steps', 0)
-            goal = last_activity.get('step_goal', 0) or 1
-            step_pct = (steps / goal) * 100
-            
-            context.append(f"- Stappen: {steps} / {goal} ({step_pct:.0f}%)")
-            
-            mod_min = last_activity.get('moderate_intensity_minutes', 0) or 0
-            vig_min = last_activity.get('vigorous_intensity_minutes', 0) or 0
-            intensity_total = mod_min + (vig_min * 2)
-            if intensity_total > 0:
-                context.append(f"- Intensiteit: {intensity_total} minuten (Mod: {mod_min}, Vig: {vig_min})")
 
         # --- SECTIE 3: MICRONUTRIËNTEN & SUPPS ---
         context.append("\n💊 *MICROS & SUPPLEMENTEN*")
@@ -119,6 +103,21 @@ class StatsFormatter:
             # Format: "Vitamine D: 0 (Weekgm: 45) / 50 mcg"
             context.append(f"- {name}: {current:.0f} (Weekgem: {avg:.0f}) / {target}{unit} {status}")
 
+        # --- SECTIE 3.5: RECENTE MAALTIJDEN ---
+        if recent_meals and len(recent_meals) > 0:
+            context.append("\n🍽️ *RECENTE MAALTIJDEN (Laatste 3 dagen)*")
+            # Group by date
+            from collections import defaultdict
+            meals_by_date = defaultdict(list)
+            for meal in recent_meals:
+                meals_by_date[meal['date']].append(meal)
+            
+            # Show most recent 3 days
+            for date in sorted(meals_by_date.keys(), reverse=True)[:3]:
+                context.append(f"\n*{date}:*")
+                for meal in meals_by_date[date][:5]:  # Max 5 meals per day
+                    context.append(f"  • {meal['description']} ({meal['calories']} kcal, {meal['protein']:.0f}g eiwit)")
+
         # --- SECTIE 4: RECENTE WORKOUTS (CONTEXT VOOR HERSTEL) ---
         if recent_workouts:
             context.append("\n🏋️ *WORKOUT CONTEXT (Laatste 7 dagen)*")
@@ -130,53 +129,76 @@ class StatsFormatter:
         # --- SECTIE 5: HERSTEL METRICS (GARMIN) ---
         context.append("\n🔋 *HERSTEL STATUS (Garmin Data)*")
         
-        # Sleep analysis
+        # Sleep analysis - ONLY show data from previous night (yesterday's date)
         sleep_logs = health_metrics.get('sleep', [])
-        if sleep_logs:
-            last_sleep = sleep_logs[0] # Most recent
-            qual = last_sleep.get('quality_score', 0) or 0
-            if qual >= 80: sleep_icon = "🟢"
-            elif qual >= 60: sleep_icon = "🟠"
-            else: sleep_icon = "🔴"
+        if sleep_logs and len(sleep_logs) > 0:
+            # Get yesterday's date to find the previous night's sleep
+            from datetime import timedelta
+            yesterday = (datetime.now(tz).date() - timedelta(days=1)).isoformat()
             
-            context.append(f"- Laatste slaap: {last_sleep.get('total_hours', 0):.1f}u (Score: {qual}/100 {sleep_icon})")
+            # Find sleep entry for yesterday
+            prev_night_sleep = None
+            for sleep in sleep_logs:
+                if sleep.get('date') == yesterday:
+                    prev_night_sleep = sleep
+                    break
             
-            # Deep sleep warning
-            if last_sleep.get('deep_hours', 0) < 1.0:
-                context.append(f"  ⚠️ Let op: Diepe slaap is laag ({last_sleep.get('deep_hours'):.1f}u). Fysiek herstel kan minder zijn.")
+            if prev_night_sleep:
+                total = prev_night_sleep.get('total_hours', 0)
+                deep = prev_night_sleep.get('deep_hours', 0) or 0
+                light = prev_night_sleep.get('light_hours', 0) or 0
+                rem = prev_night_sleep.get('rem_hours', 0) or 0
+                qual = prev_night_sleep.get('quality_score', 0) or 0
+                
+                if qual >= 80: sleep_icon = "🟢"
+                elif qual >= 60: sleep_icon = "🟠"
+                else: sleep_icon = "🔴"
+                
+                context.append(f"- Afgelopen nacht: {total:.1f}u totaal (Score: {qual}/100 {sleep_icon})")
+                context.append(f"  Stages: Diep {deep:.1f}u | Licht {light:.1f}u | REM {rem:.1f}u")
+                
+                # Calculate sleep trends for last 3 DAYS (not most recent 3 entries)
+                # Get dates for last 3 days
+                last_3_days = [(datetime.now(tz).date() - timedelta(days=i)).isoformat() for i in range(1, 4)]
+                sleep_last_3_days = [s for s in sleep_logs if s.get('date') in last_3_days]
+                
+                if len(sleep_last_3_days) >= 2:  # At least 2 days for meaningful trend
+                    recent_total = sum(s.get('total_hours', 0) for s in sleep_last_3_days) / len(sleep_last_3_days)
+                    recent_deep = sum(s.get('deep_hours', 0) or 0 for s in sleep_last_3_days) / len(sleep_last_3_days)
+                    recent_qual = sum(s.get('quality_score', 0) or 0 for s in sleep_last_3_days) / len(sleep_last_3_days)
+                    
+                    context.append(f"  Trend (laatste {len(sleep_last_3_days)} nachten): Ø {recent_total:.1f}u | Ø Diep {recent_deep:.1f}u | Ø Score {recent_qual:.0f}")
+                
+                # Deep sleep warning
+                if deep < 1.0:
+                    context.append(f"  ⚠️ Let op: Diepe slaap laag. Fysiek herstel suboptimaal.")
+            else:
+                context.append("- Slaap: Geen data van afgelopen nacht")
         else:
             context.append("- Slaap: Geen recente data")
 
-        # Stress analysis
-        stress_logs = health_metrics.get('stress', [])
-        if stress_logs:
-            last_stress = stress_logs[0]
-            avg_stress = last_stress.get('avg_stress', 0)
-            if avg_stress < 25: stress_msg = "Uitstekend (Laag)"
-            elif avg_stress < 50: stress_msg = "Normaal (Gemiddeld)"
-            else: stress_msg = "Hoog - Let op herstel!"
-            context.append(f"- Stressniveau: {avg_stress}/100 ({stress_msg})")
-
-        # Body Battery analysis
-        bb_logs = health_metrics.get('body_battery', [])
-        if bb_logs:
-            last_bb = bb_logs[0]
-            high = last_bb.get('highest')
-            low = last_bb.get('lowest')
-            charged = last_bb.get('charged')
-            drained = last_bb.get('drained')
-            
-            bb_msg = f"- Body Battery: High {high} / Low {low}"
-            if charged is not None and drained is not None:
-                net_bb = charged - drained
-                symbol = "+" if net_bb > 0 else ""
-                bb_msg += f" (Netto: {symbol}{net_bb})"
-            context.append(bb_msg)
-
-        # HR analysis
+        # HR analysis with HRV trend
         hr_logs = health_metrics.get('heart_rate', [])
-        if hr_logs:
+        if hr_logs and len(hr_logs) > 0:
             last_hr = hr_logs[0]
-            context.append(f"- Hartslag: Resting {last_hr.get('resting_hr')} bpm, HRV {last_hr.get('hrv_avg')} ms")
+            rhr = last_hr.get('resting_hr')
+            hrv = last_hr.get('hrv_avg')
+            
+            # Calculate HRV trend if we have multiple days
+            hrv_trend = ""
+            if len(hr_logs) >= 2 and hrv:
+                prev_hrv = hr_logs[1].get('hrv_avg')
+                if prev_hrv:
+                    hrv_diff = hrv - prev_hrv
+                    if hrv_diff > 5:
+                        hrv_trend = " 📈 (Stijgend - Goed herstel)"
+                    elif hrv_diff < -5:
+                        hrv_trend = " 📉 (Dalend - Mogelijk overtraining/stress)"
+                    else:
+                        hrv_trend = " ➡️ (Stabiel)"
+            
+            context.append(f"- Hartslag: Resting {rhr} bpm | HRV: {hrv} ms{hrv_trend}")
+        else:
+            context.append("- Hartslag: Geen recente data")
 
         return "\n".join(context)

@@ -331,7 +331,7 @@ Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
             print(f"Error parsing with LLM: {e}")
             return {"status": "complete", "meals": [], "workouts": []}
 
-    def answer_question_with_stats(self, question: str, daily_stats: dict, weekly_stats: dict, user_goals: dict = None, recent_workouts: list = None, health_metrics: dict = None, conversation_history: list = None) -> str:
+    def answer_question_with_stats(self, question: str, daily_stats: dict, weekly_stats: dict, user_goals: dict = None, recent_workouts: list = None, health_metrics: dict = None, conversation_history: list = None, recent_meals: list = None) -> str:
         """
         Answer user questions using their daily and weekly statistics.
         
@@ -341,8 +341,9 @@ Retourneer ALLEEN valide JSON (geen markdown, geen backticks):
             weekly_stats: Weekly averages from get_weekly_averages()
             user_goals: User's daily goals (calories, protein, carbs, fat)
             recent_workouts: List of workout dictionaries from last 7 days
-            health_metrics: Dict with sleep, heart_rate, stress data
+            health_metrics: Dict with sleep, heart_rate (NO stress/body battery)
             conversation_history: List of previous messages
+            recent_meals: List of recent meal entries for context
         
         Returns:
             Natural language answer to the question
@@ -373,7 +374,7 @@ Jij bent niet zomaar een chatbot, jij bent een coach. Je analyseert de data (voe
 - *Essentials First*: Focus op wat echt telt (calorieën, eiwit, slaap) voordat je op details ingaat.
 
 *Antwoordstijl:*
-- *Direct & Bondig*: Geen lange inleidingen. Kom tot de kern.
+- *Direct & Bondig*: Geen lange inleidingen. Kom tot de kern. Houd antwoorden compact (max 5-7 regels tenzij echt nodig).
 - *Professioneel & Motiverend*: Je bent een expert. Spreek met autoriteit maar blijf bemoedigend.
 - *Gebruik de Data*: Noem de specifieke cijfers in je antwoord om je punt te maken.
 
@@ -381,7 +382,8 @@ Jij bent niet zomaar een chatbot, jij bent een coach. Je analyseert de data (voe
 - Gebruik *tekst* voor nadruk (bold) - ALTIJD sluiten met *
 - Gebruik GEEN underscores _ - deze breken formatting
 - Gebruik GEEN dubbele asterisks ** 
-- Gebruik GEEN andere markdown: # > ``` [] ()
+- Gebruik GEEN headings: ### ## # - VERBODEN
+- Gebruik GEEN andere markdown: > ``` [] ()
 - Bullets: gebruik gewoon - (dash + spatie)
 - Getallen/eenheden: schrijf normaal (1000 kcal, niet 1000kcal)
 - Check ALTIJD: elke * die je opent moet je ook sluiten
@@ -394,7 +396,8 @@ Jij bent niet zomaar een chatbot, jij bent een coach. Je analyseert de data (voe
             weekly_stats=weekly_stats,
             user_goals=user_goals,
             recent_workouts=recent_workouts,
-            health_metrics=health_metrics
+            health_metrics=health_metrics,
+            recent_meals=recent_meals
         )
 
         messages = [{"role": "system", "content": system_prompt}]        # Add conversation history if provided

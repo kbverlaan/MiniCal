@@ -336,8 +336,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             # Get recent workouts for detailed planning advice
             recent_workouts = supabase_client.get_workouts_for_range(user['id'], week_start, today)
             
-            # Get health metrics (sleep, HR, stress)
-            health_metrics = supabase_client.get_health_metrics(user['id'], week_start, today)
+            # Get recent meals for context (last 3 days)
+            three_days_ago = (datetime.now(tz).date() - timedelta(days=2)).isoformat()
+            recent_meals = []
+            for day_offset in range(3):
+                day = (datetime.now(tz).date() - timedelta(days=day_offset)).isoformat()
+                recent_meals.extend(supabase_client.get_meals_for_date(user['id'], day))
+            
+            # Get health metrics (sleep, HR) - ONLY accurate metrics
+            all_health_metrics = supabase_client.get_health_metrics(user['id'], week_start, today)
+            health_metrics = {
+                'sleep': all_health_metrics.get('sleep', []),
+                'heart_rate': all_health_metrics.get('heart_rate', [])
+            }
             
             # Start sending 'typing...' action in the background
             typing_task = asyncio.create_task(_send_typing_periodically(context.bot, update.effective_chat.id))
@@ -351,7 +362,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     user_goals=user,
                     recent_workouts=recent_workouts,
                     health_metrics=health_metrics,
-                    conversation_history=formatted_history[:-1]
+                    conversation_history=formatted_history[:-1],
+                    recent_meals=recent_meals
                 )
             finally:
                 # Stop the 'typing...' action
