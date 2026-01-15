@@ -99,8 +99,8 @@ async def today_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     recent_workouts = supabase_client.get_workouts_for_range(user['id'], week_start, today)
     health_metrics = supabase_client.get_health_metrics(user['id'], week_start, today)
     
-    # Use StatsFormatter for consistent, rich output
-    msg = StatsFormatter.format(
+    # Use COMPACT formatter for user-facing output
+    msg = StatsFormatter.format_compact(
         daily_stats=daily_stats,
         weekly_stats=weekly_stats,
         user_goals=user,
@@ -108,7 +108,7 @@ async def today_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         health_metrics=health_metrics
     )
     
-    await update.message.reply_text(msg, parse_mode='Markdown')
+    await update.message.reply_text(msg)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help command - show available commands."""
