@@ -1,4 +1,3 @@
-````markdown
 # MiniCal - Ultra Simpele Calorie Tracker
 
 De simpelste calorie tracker ooit. Stuur gewoon een bericht met wat je hebt gegeten en workouts die je hebt gedaan.
@@ -89,4 +88,3 @@ Data wordt automatisch opgeslagen in de database en is beschikbaar in Q&A!
 - `/help` - Overzicht van alle features
 - `/sync` - Handmatig Garmin data syncen
 
-````
